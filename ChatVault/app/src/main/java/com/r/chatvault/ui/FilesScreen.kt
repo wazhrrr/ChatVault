@@ -1,5 +1,6 @@
 package com.r.chatvault.ui
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -35,12 +37,13 @@ fun FilesScreen(state: UiState) {
     val images = state.allFiles.filter { it.kind == "image" }
     val docs = state.allFiles.filter { it.kind != "image" }
     val orphans = state.allFiles.filter { it.convId == null }
-    val missing = state.allFiles.count { !it.exists }
+    val missing = state.allFiles.filter { !it.exists }
 
     val base = when (tab) {
-        0 -> images
-        1 -> docs
-        2 -> state.allFiles
+        0 -> state.allFiles
+        1 -> missing
+        2 -> images
+        3 -> docs
         else -> orphans
     }
     val list = remember(base, query) {
@@ -50,13 +53,17 @@ fun FilesScreen(state: UiState) {
 
     Column(Modifier.fillMaxSize()) {
         Row(
-            Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 6.dp),
+            Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(start = 12.dp, end = 12.dp, top = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            FilterChip(tab == 0, { tab = 0 }, { Text("图片 ${images.size}", style = MaterialTheme.typography.labelSmall) })
-            FilterChip(tab == 1, { tab = 1 }, { Text("文档 ${docs.size}", style = MaterialTheme.typography.labelSmall) })
-            FilterChip(tab == 2, { tab = 2 }, { Text("全部 ${state.allFiles.size}", style = MaterialTheme.typography.labelSmall) })
-            FilterChip(tab == 3, { tab = 3 }, { Text("未引用 ${orphans.size}", style = MaterialTheme.typography.labelSmall) })
+            FilterChip(tab == 0, { tab = 0 }, { Text("全部 ${state.allFiles.size}", style = MaterialTheme.typography.labelSmall) })
+            FilterChip(tab == 1, { tab = 1 }, { Text("缺失 ${missing.size}", style = MaterialTheme.typography.labelSmall) })
+            FilterChip(tab == 2, { tab = 2 }, { Text("图片 ${images.size}", style = MaterialTheme.typography.labelSmall) })
+            FilterChip(tab == 3, { tab = 3 }, { Text("文档 ${docs.size}", style = MaterialTheme.typography.labelSmall) })
+            FilterChip(tab == 4, { tab = 4 }, { Text("未引用 ${orphans.size}", style = MaterialTheme.typography.labelSmall) })
         }
 
         OutlinedTextField(
@@ -71,7 +78,7 @@ fun FilesScreen(state: UiState) {
         Text(
             buildString {
                 append("共 ${list.size} 个文件")
-                if (missing > 0) append(" · 其中 $missing 个缺失实体")
+                if (missing.isNotEmpty()) append(" · 其中 ${missing.size} 个缺失实体")
                 append(" · 图片可直接点开缩放查看")
             },
             Modifier.padding(horizontal = 18.dp, vertical = 4.dp),
@@ -83,7 +90,7 @@ fun FilesScreen(state: UiState) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text("没有文件", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-        } else if (tab == 0 && query.isBlank()) {
+        } else if (tab == 2 && query.isBlank()) {
             ImageGrid(list) { viewer = it }
         } else {
             LazyColumn(Modifier.fillMaxSize()) {

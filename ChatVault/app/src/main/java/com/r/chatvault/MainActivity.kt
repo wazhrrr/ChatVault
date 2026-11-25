@@ -33,6 +33,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.r.chatvault.ui.ChatVaultTheme
 import com.r.chatvault.ui.MainScreen
 import com.r.chatvault.vm.AppViewModel
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
 
@@ -50,6 +53,22 @@ class MainActivity : ComponentActivity() {
                 val zipLauncher = rememberLauncherForActivityResult(
                     ActivityResultContracts.OpenDocument()
                 ) { uri -> if (uri != null) vm.importPackage(uri) }
+
+                val mdLauncher = rememberLauncherForActivityResult(
+                    ActivityResultContracts.OpenMultipleDocuments()
+                ) { uris -> if (uris.isNotEmpty()) vm.importMarkdown(uris) }
+
+                val backupLauncher = rememberLauncherForActivityResult(
+                    ActivityResultContracts.CreateDocument("application/zip")
+                ) { uri ->
+                    if (uri != null) vm.backupTo(uri)
+                }
+
+                val restoreLauncher = rememberLauncherForActivityResult(
+                    ActivityResultContracts.OpenDocument()
+                ) { uri ->
+                    if (uri != null) vm.restoreFrom(uri)
+                }
 
                 val snackbar = remember { SnackbarHostState() }
                 LaunchedEffect(state.toast) {
@@ -70,7 +89,18 @@ class MainActivity : ComponentActivity() {
                             vm = vm,
                             state = state,
                             onPickFolder = { folderLauncher.launch(null) },
-                            onPickZip = { zipLauncher.launch(arrayOf("*/*")) }
+                            onPickZip = { zipLauncher.launch(arrayOf("*/*")) },
+                            onPickMarkdown = {
+                                mdLauncher.launch(
+                                    arrayOf("text/markdown", "text/plain", "application/octet-stream")
+                                )
+                            },
+                            onBackup = {
+                                val name = "ChatVault-backup-" +
+                                    SimpleDateFormat("yyyyMMdd-HHmm", Locale.CHINA).format(Date()) + ".zip"
+                                backupLauncher.launch(name)
+                            },
+                            onRestore = { restoreLauncher.launch(arrayOf("application/zip", "*/*")) }
                         )
                         if (state.importing) {
                             ImportOverlay(state.phase, state.progress)
@@ -84,6 +114,11 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun ImportOverlay(phase: String, progress: Float) {
+    val title = when {
+        phase.contains("备份") -> "正在备份"
+        phase.contains("恢复") || phase.contains("替换") || phase.contains("解压备份") -> "正在恢复"
+        else -> "正在导入"
+    }
     Box(
         Modifier.fillMaxSize().background(Color(0x99000000)),
         contentAlignment = Alignment.Center
@@ -93,7 +128,7 @@ private fun ImportOverlay(phase: String, progress: Float) {
                 Modifier.padding(horizontal = 24.dp, vertical = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text("正在导入", style = MaterialTheme.typography.titleSmall)
+                Text(title, style = MaterialTheme.typography.titleSmall)
                 Text(
                     phase.ifBlank { "准备中" },
                     style = MaterialTheme.typography.labelSmall,
@@ -104,7 +139,7 @@ private fun ImportOverlay(phase: String, progress: Float) {
                     modifier = Modifier.fillMaxWidth()
                 )
                 Text(
-                    "大包（含上千条会话）可能需要十几秒，请保持应用在前台",
+                    "请保持应用在前台，不要锁屏或切走。",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

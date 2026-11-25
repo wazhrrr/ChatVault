@@ -1,5 +1,7 @@
 package com.r.chatvault.data
 
+import org.json.JSONArray
+
 /** 一个会话（索引层，不含消息正文） */
 data class Conversation(
     val id: String,
@@ -11,10 +13,19 @@ data class Conversation(
     val model: String?,
     val category: String,
     val starred: Boolean,
-    val attachmentCount: Int
-)
+    val attachmentCount: Int,
+    val alias: String? = null,
+    val tagsCsv: String = ""
+) {
+    /** 用户自定义名称优先，未改名时用导出包里的标题 */
+    val displayTitle: String
+        get() = alias?.takeIf { it.isNotBlank() } ?: title
 
-/** 一条消息 */
+    val tags: List<String>
+        get() = tagsCsv.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+}
+
+/** 一条消息。active=false 表示被编辑废弃的分支节点，只在分支浏览里出现 */
 data class Message(
     val id: String,
     val convId: String,
@@ -24,8 +35,19 @@ data class Message(
     val ts: Long,
     val order: Int,
     val contentType: String,
-    val model: String?
-)
+    val model: String?,
+    val parentId: String? = null,
+    val childIds: String = "",
+    val active: Boolean = true
+) {
+    val childIdList: List<String>
+        get() = runCatching {
+            val arr = JSONArray(childIds)
+            (0 until arr.length()).mapNotNull { i ->
+                arr.optString(i).takeIf { it.isNotBlank() }
+            }
+        }.getOrDefault(emptyList())
+}
 
 /** 附件（.dat 实体 或 只有记录） */
 data class Attachment(
@@ -40,7 +62,7 @@ data class Attachment(
     val exists: Boolean
 )
 
-/** 搜索命中 */
+/** 搜索命中。type: message / code / clip / file */
 data class SearchHit(
     val convId: String,
     val convTitle: String,
@@ -48,8 +70,42 @@ data class SearchHit(
     val role: String,
     val ts: Long,
     val snippet: String,
-    val order: Int
+    val order: Int,
+    val type: String = "message",
+    val lang: String? = null,
+    val attachment: Attachment? = null,
+    val clipId: Long = 0L
 )
+
+/** 摘录 / 书签 */
+data class ClipItem(
+    val id: Long,
+    val convId: String?,
+    val msgId: String?,
+    val text: String,
+    val note: String?,
+    val tags: String,
+    val kind: String,
+    val createdTs: Long,
+    val convTitle: String?,
+    val canRevert: Boolean = false
+) {
+    val tagList: List<String>
+        get() = tags.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+}
+
+/** 代码片段 */
+data class CodeItem(
+    val id: Long,
+    val convId: String,
+    val msgId: String,
+    val lang: String,
+    val code: String,
+    val ts: Long,
+    val convTitle: String?
+)
+
+data class TagCount(val name: String, val count: Int)
 
 data class MonthlyStat(val key: String, val convs: Int, val msgs: Int, val chars: Int)
 data class NamedCount(val name: String, val count: Int)
@@ -75,7 +131,15 @@ data class ImportSummary(
     val attachments: Int,
     val missing: Int,
     val orphanFiles: Int,
-    val files: Int
+    val files: Int,
+    val mdFiles: Int = 0
+)
+
+/** 导入结束后的可点报告：缺失附件与未引用文件都能直接打开 */
+data class ImportReport(
+    val summary: ImportSummary,
+    val missing: List<Attachment> = emptyList(),
+    val orphans: List<Attachment> = emptyList()
 )
 
 /** 主题归类：命中词越多越可信，全部不命中则归到「其他」 */

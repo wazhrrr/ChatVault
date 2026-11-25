@@ -14,6 +14,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -62,6 +63,7 @@ fun StatsScreen(vm: AppViewModel, state: UiState) {
     var metric by remember { mutableStateOf(Metric.CONVS) }
     var config by remember { mutableStateOf(AxisConfig()) }
     var configOpen by remember { mutableStateOf(false) }
+    var filterOpen by remember { mutableStateOf(false) }
     var yManual by remember { mutableStateOf(false) }
     var yMaxValue by remember { mutableFloatStateOf(50f) }
     var stepIndex by remember { mutableStateOf(0) }
@@ -72,6 +74,14 @@ fun StatsScreen(vm: AppViewModel, state: UiState) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("数据总览", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+            IconButton(onClick = { filterOpen = true }) {
+                Icon(
+                    Icons.Outlined.FilterList,
+                    "筛选",
+                    tint = if (state.filterCount > 0) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             if (tab == StatsTab.TREND || tab == StatsTab.HOUR) {
                 IconButton(onClick = { configOpen = true }) {
                     Icon(Icons.Outlined.Tune, "图表设置", tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -210,6 +220,23 @@ fun StatsScreen(vm: AppViewModel, state: UiState) {
         }
 
         Column(Modifier.height(24.dp)) {}
+    }
+
+    if (filterOpen) {
+        FilterSheet(
+            sort = state.sort,
+            year = state.year,
+            category = state.category,
+            model = state.model,
+            dateFrom = state.dateFrom,
+            dateTo = state.dateTo,
+            years = state.filterYears,
+            categories = state.filterCategories,
+            models = state.filterModels,
+            onApply = { s, y, c, m, from, to -> vm.applyFilters(s, y, c, m, from, to) },
+            onReset = { vm.resetFilters() },
+            onDismiss = { filterOpen = false }
+        )
     }
 
     if (configOpen) {

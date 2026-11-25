@@ -24,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -121,16 +122,17 @@ fun parseMarkdown(src: String): List<MdBlock> {
             continue
         }
 
-        if (trimmed.startsWith("|") && trimmed.endsWith("|") && trimmed.count { it == '|' } >= 2) {
+        if (isTableStart(lines, i)) {
             flushParagraph(); flushBullets()
             val rows = ArrayList<List<String>>()
-            while (i < lines.size && lines[i].trim().startsWith("|")) {
+            while (i < lines.size && isTableLine(lines[i].trim())) {
                 val cells = lines[i].trim().trim('|').split('|').map { it.trim() }
-                val isSeparator = cells.all { it.matches(Regex(":?-{2,}:?")) }
+                val isSeparator = cells.isNotEmpty() && cells.all { it.matches(Regex(":?-{2,}:?")) }
                 if (cells.isNotEmpty() && !isSeparator) rows.add(cells)
                 i++
             }
-            if (rows.isNotEmpty()) out.add(MdBlock.Table(rows))
+            if (rows.size >= 2) out.add(MdBlock.Table(rows))
+            else if (rows.size == 1) out.add(MdBlock.Paragraph(trimmed))
             continue
         }
 
@@ -150,6 +152,25 @@ fun parseMarkdown(src: String): List<MdBlock> {
     }
     flushParagraph(); flushBullets()
     return out
+}
+
+private fun isTableLine(t: String): Boolean {
+    if (t.startsWith("```") || t.startsWith("~~~")) return false
+    return t.count { it == '|' } >= 1
+}
+
+/** 两列表格可能没有外侧竖线，需要看下一行是不是分隔行 */
+private fun isTableStart(lines: List<String>, index: Int): Boolean {
+    val t = lines[index].trim()
+    if (t.startsWith("```") || t.startsWith("~~~")) return false
+    val pipes = t.count { it == '|' }
+    if (pipes >= 2) return true
+    if (pipes == 1) {
+        val next = lines.getOrNull(index + 1)?.trim() ?: return false
+        val cells = next.trim('|').split('|').map { it.trim() }
+        return cells.isNotEmpty() && cells.all { it.matches(Regex(":?-{2,}:?")) }
+    }
+    return false
 }
 
 /** 行内格式：**粗体**、`代码`、[文字](链接)，并可叠加搜索高亮 */
@@ -237,12 +258,15 @@ fun MarkdownView(
     text: String,
     modifier: Modifier = Modifier,
     highlight: List<String> = emptyList(),
-    wrapCode: Boolean = true
+    wrapCode: Boolean = true,
+    selectionKey: Any? = null
 ) {
     val colors = LocalChatColors.current
     val blocks = remember(text) { parseMarkdown(text) }
     val linkColor = MaterialTheme.colorScheme.secondary
     val codeColor = MaterialTheme.colorScheme.primary
+    // 只重建选择容器，不重解析 Markdown：外部换 key 即可清掉文字选择
+    key(selectionKey) {
     SelectionContainer(modifier = modifier) {
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             blocks.forEach { block ->
@@ -298,9 +322,9 @@ fun MarkdownView(
                         )
                     }
 
-                    is MdBlock.Code -> CodeBlock(block.lang, block.code, wrapCode)
+                    is MdBlock.Code -> CodeBlock(block.lang, block.code, wrapCode, highlight, colors.highlight)
 
-                    is MdBlock.Table -> TableBlock(block.rows)
+                    is MdBlock.Table -> TableBlock(block.rows, highlight, colors.highlight)
 
                     MdBlock.Divider -> Box(
                         Modifier
@@ -313,10 +337,17 @@ fun MarkdownView(
             }
         }
     }
+    }
 }
 
 @Composable
-private fun CodeBlock(lang: String, code: String, wrap: Boolean) {
+private fun CodeBlock(
+    lang: String,
+    code: String,
+    wrap: Boolean,
+    highlight: List<String>,
+    highlightColor: Color
+) {
     val colors = LocalChatColors.current
     val clipboard = LocalClipboardManager.current
     Column(
@@ -352,7 +383,7 @@ private fun CodeBlock(lang: String, code: String, wrap: Boolean) {
                 .padding(start = 12.dp, end = 12.dp, bottom = 10.dp)
         ) {
             Text(
-                code,
+                highlightAll(code, highlight, highlightColor),
                 style = MonoStyle,
                 softWrap = wrap,
                 color = MaterialTheme.colorScheme.onSurface
@@ -362,27 +393,82 @@ private fun CodeBlock(lang: String, code: String, wrap: Boolean) {
 }
 
 @Composable
-private fun TableBlock(rows: List<List<String>>) {
-    val cols = rows.maxOf { it.size }.coerceAtMost(6)
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
-            .padding(8.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        rows.forEachIndexed { rIdx, row ->
-            Row(Modifier.fillMaxWidth()) {
-                for (c in 0 until cols) {
-                    Text(
-                        row.getOrElse(c) { "" },
-                        style = if (rIdx == 0) MaterialTheme.typography.labelMedium else MaterialTheme.typography.bodySmall,
-                        fontWeight = if (rIdx == 0) FontWeight.Medium else FontWeight.Normal,
-                        color = if (rIdx == 0) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.weight(1f).padding(end = 6.dp)
-                    )
+private fun TableBlock(
+    rows: List<List<String>>,
+    highlight: List<String>,
+    highlightColor: Color
+) {
+    if (rows.isEmpty()) return
+    val cols = rows.maxOf { it.size }.coerceAtMost(12)
+    val many = cols > 4
+    val codeColor = MaterialTheme.colorScheme.primary
+    val linkColor = MaterialTheme.colorScheme.secondary
+    if (many) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
+                .padding(8.dp)
+        ) {
+            rows.forEachIndexed { rIdx, row ->
+                Row {
+                    for (c in 0 until cols) {
+                        TableCell(
+                            row.getOrElse(c) { "" },
+                            header = rIdx == 0,
+                            modifier = Modifier.width(140.dp).padding(end = 6.dp),
+                            codeColor = codeColor,
+                            linkColor = linkColor,
+                            highlight = highlight,
+                            highlightColor = highlightColor
+                        )
+                    }
+                }
+            }
+        }
+    } else {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
+                .padding(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            rows.forEachIndexed { rIdx, row ->
+                Row(Modifier.fillMaxWidth()) {
+                    for (c in 0 until cols) {
+                        TableCell(
+                            row.getOrElse(c) { "" },
+                            header = rIdx == 0,
+                            modifier = Modifier.weight(1f).padding(end = 6.dp),
+                            codeColor = codeColor,
+                            linkColor = linkColor,
+                            highlight = highlight,
+                            highlightColor = highlightColor
+                        )
+                    }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun TableCell(
+    text: String,
+    header: Boolean,
+    modifier: Modifier,
+    codeColor: Color,
+    linkColor: Color,
+    highlight: List<String>,
+    highlightColor: Color
+) {
+    Text(
+        inlineAnnotated(text, codeColor, linkColor, highlight, highlightColor),
+        modifier = modifier,
+        style = if (header) MaterialTheme.typography.labelMedium else MaterialTheme.typography.bodySmall,
+        fontWeight = if (header) FontWeight.Medium else FontWeight.Normal,
+        color = if (header) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+    )
 }

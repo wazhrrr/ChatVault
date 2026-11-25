@@ -12,12 +12,14 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.InputStream
+import java.security.MessageDigest
 import java.util.zip.ZipInputStream
 import kotlin.coroutines.coroutineContext
 
 /**
- * 导入器：支持「选择文件夹（SAF 目录）」和「选择 ZIP」两种入口。
- * 增量策略：以 conversation.update_time 为版本号，相等则跳过，否则整条会话替换。
+ * 导入器：
+ *  - ChatGPT 导出包（文件夹 / ZIP）：增量导入、保留全部分支、抽取代码块与文本文档
+ *  - Markdown 聊天记录：多选文件，按文件修改时间作为会话时间
  */
 class Importer(private val ctx: Context, private val store: Store) {
 
@@ -33,6 +35,19 @@ class Importer(private val ctx: Context, private val store: Store) {
         val mime: String,
         val size: Long
     )
+
+    private class ParsedContent(val text: String, val pointers: List<String>, val ctype: String)
+
+    private class NodeData(
+        val role: String,
+        val text: String,
+        val reasoning: String?,
+        val ctype: String,
+        val ts: Long,
+        val model: String?
+    )
+
+    // ================= ChatGPT 导出包 =================
 
     suspend fun importFrom(uri: Uri, force: Boolean = false, onProgress: (Progress) -> Unit): ImportSummary =
         withContext(Dispatchers.IO) {
@@ -60,8 +75,6 @@ class Importer(private val ctx: Context, private val store: Store) {
             }
         }
 
-    // ---------- 数据源 ----------
-
     private fun displayName(uri: Uri): String? = try {
         ctx.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
             if (it.moveToFirst()) it.getString(0) else null
@@ -79,7 +92,11 @@ class Importer(private val ctx: Context, private val store: Store) {
                 if (f.isDirectory) {
                     walk(f, depth + 1)
                 } else if (isInteresting(f.name ?: "")) {
-                    out.add(Source(f.name ?: "unknown", f.length()) { ctx.contentResolver.openInputStream(f.uri) ?: throw IllegalStateException("无法读取 ${f.name}") })
+                    out.add(
+                        Source(f.name ?: "unknown", f.length()) {
+                            ctx.contentResolver.openInputStream(f.uri) ?: throw IllegalStateException("无法读取 ${f.name}")
+                        }
+                    )
                 }
             }
         }
@@ -122,8 +139,6 @@ class Importer(private val ctx: Context, private val store: Store) {
         }
     }
 
-    // ---------- 主流程 ----------
-
     private suspend fun doImport(
         sources: List<Source>,
         force: Boolean,
@@ -163,121 +178,154 @@ class Importer(private val ctx: Context, private val store: Store) {
                 val createSec = o.optDouble("create_time", 0.0).toLong()
                 val updateSec = o.optDouble("update_time", createSec.toDouble()).toLong()
                 val existing = store.existingUpdateTs(convId)
+                // 旧版本导入的数据没有分支信息；同版本或更新的包重导一次即可补齐，且不覆盖更新的数据
+                val needsBranchUpgrade =
+                    existing != null && !store.hasBranchInfo(convId) && existing <= updateSec
+                // 上次导入在附件阶段被中断：补解析一次，避免附件永久缺失
+                val needsAttachmentRepair = existing != null && store.needsAttachmentRepair(convId)
 
-                if (!force && existing != null && existing >= updateSec && updateSec > 0) {
+                if (!force && !needsBranchUpgrade && !needsAttachmentRepair &&
+                    existing != null && existing >= updateSec && updateSec > 0
+                ) {
                     skipped++
                     continue
                 }
 
                 val mapping = o.optJSONObject("mapping") ?: continue
-                val path = buildPath(mapping, o.optString("current_node"))
-                if (path.isEmpty()) {
+                val activePath = buildPath(mapping, o.optString("current_node"))
+                if (activePath.isEmpty()) {
                     skipped++
                     continue
                 }
+                val activeSet = activePath.toHashSet()
+                val activeOrd = HashMap<String, Int>()
+                activePath.forEachIndexed { idx, id -> activeOrd[id] = idx }
 
                 val defaultModel = o.optString("default_model_slug").ifBlank { null }
-                val messages = ArrayList<Message>()
-                var chars = 0
+                val nodes = LinkedHashMap<String, NodeData>()
                 var attachmentsInConv = 0
 
-                for ((ord, nodeId) in path.withIndex()) {
+                // 1) 收集 mapping 里所有 user/assistant 节点，标记哪些在活跃路径上
+                val keys = mapping.keys()
+                while (keys.hasNext()) {
+                    val nodeId = keys.next()
                     val node = mapping.optJSONObject(nodeId) ?: continue
                     val msg = node.optJSONObject("message") ?: continue
                     val role = msg.optJSONObject("author")?.optString("role") ?: "assistant"
                     if (role != "user" && role != "assistant") continue
 
-                    val content = msg.optJSONObject("content")
-                    val ctype = content?.optString("content_type") ?: "text"
-                    val sb = StringBuilder()
-                    val pointerIds = LinkedHashSet<String>()
-                    val parts = content?.optJSONArray("parts")
-                    if (parts != null) {
-                        for (p in 0 until parts.length()) {
-                            when (val part = parts.opt(p)) {
-                                is String -> sb.append(part)
-                                is JSONObject -> {
-                                    val t = part.optString("text", "")
-                                    if (t.isNotEmpty()) sb.append(t)
-                                    val ptr = part.optString("asset_pointer", "")
-                                    if (ptr.startsWith("file-service://")) {
-                                        pointerIds.add(ptr.removePrefix("file-service://"))
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    val md = msg.optJSONObject("metadata")
-                    val atts = md?.optJSONArray("attachments")
-                    val metaIds = LinkedHashSet<String>()
-                    if (atts != null) {
-                        for (a in 0 until atts.length()) {
-                            val ao = atts.optJSONObject(a) ?: continue
-                            val aid = ao.optString("id")
-                            if (aid.isBlank()) continue
-                            metaIds.add(aid)
-                            val aname = ao.optString("name").ifBlank { nameMap["$aid.dat"] ?: aid }
-                            pending.add(
-                                PendingAttachment(
-                                    id = aid,
-                                    convId = convId,
-                                    msgId = nodeId,
-                                    name = aname,
-                                    mime = ao.optString("mime_type"),
-                                    size = ao.optLong("size", 0L)
-                                )
-                            )
-                        }
-                    }
-                    for (pid in pointerIds) {
-                        if (pid in metaIds) continue
-                        pending.add(
-                            PendingAttachment(
-                                id = pid,
-                                convId = convId,
-                                msgId = nodeId,
-                                name = nameMap["$pid.dat"] ?: pid,
-                                mime = "",
-                                size = 0L
-                            )
-                        )
-                    }
-                    attachmentsInConv += (metaIds + pointerIds).size
-
-                    var text = sb.toString()
+                    val parsed = parseContent(msg.optJSONObject("content"))
+                    var text = parsed.text
                     var reasoning: String? = null
-                    if (ctype == "thoughts" || ctype == "reasoning_recap") {
+                    if (parsed.ctype == "thoughts" || parsed.ctype == "reasoning_recap") {
                         reasoning = text
                         text = ""
                     }
 
+                    val md = msg.optJSONObject("metadata")
                     val ts = msg.optDouble("create_time", 0.0).toLong().takeIf { it > 0 } ?: createSec
                     val model = md?.optString("model_slug")?.ifBlank { null } ?: defaultModel
-                    chars += text.length
+                    val isActive = nodeId in activeSet
 
+                    if (isActive && md != null) {
+                        val atts = md.optJSONArray("attachments")
+                        val metaIds = LinkedHashSet<String>()
+                        if (atts != null) {
+                            for (a in 0 until atts.length()) {
+                                val ao = atts.optJSONObject(a) ?: continue
+                                val aid = ao.optString("id")
+                                if (aid.isBlank()) continue
+                                metaIds.add(aid)
+                                val aname = ao.optString("name").ifBlank { nameMap["$aid.dat"] ?: aid }
+                                pending.add(
+                                    PendingAttachment(
+                                        id = aid,
+                                        convId = convId,
+                                        msgId = nodeId,
+                                        name = aname,
+                                        mime = ao.optString("mime_type"),
+                                        size = ao.optLong("size", 0L)
+                                    )
+                                )
+                            }
+                        }
+                        for (pid in parsed.pointers) {
+                            if (pid in metaIds) continue
+                            pending.add(
+                                PendingAttachment(
+                                    id = pid,
+                                    convId = convId,
+                                    msgId = nodeId,
+                                    name = nameMap["$pid.dat"] ?: pid,
+                                    mime = "",
+                                    size = 0L
+                                )
+                            )
+                        }
+                        attachmentsInConv += (metaIds + parsed.pointers).size
+                    }
+
+                    nodes[nodeId] = NodeData(role, text, reasoning, parsed.ctype, ts, model)
+                }
+
+                if (nodes.isEmpty()) {
+                    skipped++
+                    continue
+                }
+
+                // 2) 计算可见的消息级父子关系（跳过 system/tool 节点）
+                val parentOf = HashMap<String, String?>()
+                for (id in nodes.keys) {
+                    var p = mapping.optJSONObject(id)?.optString("parent")?.ifBlank { null }
+                    var guard = 0
+                    while (p != null && p !in nodes && guard < 500) {
+                        p = mapping.optJSONObject(p)?.optString("parent")?.ifBlank { null }
+                        guard++
+                    }
+                    parentOf[id] = if (p != null && p in nodes) p else null
+                }
+                val childMap = HashMap<String, MutableList<String>>()
+                for ((id, p) in parentOf) {
+                    if (p != null) childMap.getOrPut(p) { ArrayList() }.add(id)
+                }
+
+                // 3) 生成消息（含废弃分支，active=0）
+                val messages = ArrayList<Message>(nodes.size)
+                var chars = 0
+                var activeCount = 0
+                for ((id, nd) in nodes) {
+                    val isActive = id in activeSet
+                    if (isActive) {
+                        chars += nd.text.length
+                        activeCount++
+                    }
+                    val kids = childMap[id] ?: emptyList()
                     messages.add(
                         Message(
-                            id = nodeId,
+                            id = id,
                             convId = convId,
-                            role = role,
-                            text = text,
-                            reasoning = reasoning,
-                            ts = ts,
-                            order = ord,
-                            contentType = ctype,
-                            model = model
+                            role = nd.role,
+                            text = nd.text,
+                            reasoning = nd.reasoning,
+                            ts = nd.ts,
+                            order = activeOrd[id] ?: -1,
+                            contentType = nd.ctype,
+                            model = nd.model,
+                            parentId = parentOf[id],
+                            childIds = JSONArray(kids).toString(),
+                            active = isActive
                         )
                     )
                 }
-
-                if (messages.isEmpty()) {
+                if (activeCount == 0) {
                     skipped++
                     continue
                 }
 
                 db.beginTransaction()
                 try {
+                    val keepStar = existing != null && store.starOf(convId)
+                    val keepAlias = store.aliasOf(convId)
                     store.clearConvContent(db, convId)
                     store.putConversation(
                         db,
@@ -286,20 +334,24 @@ class Importer(private val ctx: Context, private val store: Store) {
                             title = title,
                             createTs = createSec,
                             updateTs = updateSec,
-                            msgCount = messages.size,
+                            msgCount = activeCount,
                             charCount = chars,
                             model = defaultModel,
                             category = Classifier.classify(title),
-                            starred = existing != null && store.starOf(convId),
-                            attachmentCount = attachmentsInConv
+                            starred = keepStar,
+                            attachmentCount = attachmentsInConv,
+                            alias = keepAlias
                         )
                     )
-                    for (m in messages) store.putMessage(db, m)
+                    for (m in messages) {
+                        store.putMessage(db, m)
+                        store.putCodeBlocksForMessage(db, m)
+                    }
                     db.setTransactionSuccessful()
                 } finally {
                     db.endTransaction()
                 }
-                msgTotal += messages.size
+                msgTotal += activeCount
                 if (existing == null) added++ else updated++
             }
         }
@@ -307,9 +359,8 @@ class Importer(private val ctx: Context, private val store: Store) {
         // 附件实体还原
         onProgress(Progress("还原附件", 0, pending.size + datFiles.size))
         val blobDir = File(ctx.filesDir, "blobs").apply { mkdirs() }
-        val referenced = HashSet<String>()
-        var attOk = 0
-        var attMissing = 0
+        // 已被会话引用的附件：包含本次跳过的会话，防止重复导入时把附件误降级成孤儿
+        val referenced = HashSet<String>(store.referencedAttachmentIds())
 
         db.beginTransaction()
         try {
@@ -335,10 +386,12 @@ class Importer(private val ctx: Context, private val store: Store) {
                         path = target.absolutePath
                         exists = true
                         size = target.length()
-                        attOk++
+                        if (kind == "text") {
+                            val text = readFileText(target, 200_000)
+                            if (text.isNotBlank()) store.putAttachmentText(db, pa.id, pa.convId, pa.name, text)
+                        }
                     }
                 }
-                if (!exists) attMissing++
                 store.putAttachment(
                     db,
                     Attachment(
@@ -356,7 +409,6 @@ class Importer(private val ctx: Context, private val store: Store) {
             }
 
             // 未被任何会话引用的导出文件，也登记到「文件」里
-            var orphan = 0
             for ((id, src) in datFiles) {
                 if (id in referenced) continue
                 val probe = sniff(src)
@@ -367,6 +419,10 @@ class Importer(private val ctx: Context, private val store: Store) {
                     runCatching { src.open().use { input -> target.outputStream().use { input.copyTo(it) } } }
                 }
                 val ok = target.exists() && target.length() > 0
+                if (ok && orphanKind == "text") {
+                    val text = readFileText(target, 200_000)
+                    if (text.isNotBlank()) store.putAttachmentText(db, id, null, displayName, text)
+                }
                 store.putAttachment(
                     db,
                     Attachment(
@@ -381,17 +437,17 @@ class Importer(private val ctx: Context, private val store: Store) {
                         exists = ok
                     )
                 )
-                orphan++
             }
             db.setTransactionSuccessful()
+            val attTotals = store.attachmentTotals()
             return ImportSummary(
                 added = added,
                 updated = updated,
                 skipped = skipped,
                 messages = msgTotal,
-                attachments = attOk,
-                missing = attMissing,
-                orphanFiles = orphan,
+                attachments = attTotals.first,
+                missing = attTotals.second,
+                orphanFiles = attTotals.third,
                 files = jsonFiles.size + datFiles.size
             )
         } finally {
@@ -399,12 +455,165 @@ class Importer(private val ctx: Context, private val store: Store) {
         }
     }
 
+    // ================= Markdown 导入 =================
+
+    suspend fun importMarkdown(uris: List<Uri>, onProgress: (Progress) -> Unit): ImportSummary =
+        withContext(Dispatchers.IO) {
+            var added = 0
+            var updated = 0
+            var skipped = 0
+            var msgTotal = 0
+            val db = store.writableDatabase
+
+            uris.forEachIndexed { index, uri ->
+                coroutineContext.ensureActive()
+                onProgress(Progress("解析 Markdown", index, uris.size))
+                try {
+                    val name = displayName(uri) ?: "note.md"
+                    val lname = name.lowercase()
+                    if (!lname.endsWith(".md") && !lname.endsWith(".markdown") && !lname.endsWith(".txt")) {
+                        skipped++
+                        return@forEachIndexed
+                    }
+                    val raw = readUriText(uri)
+                    if (raw.isBlank()) {
+                        skipped++
+                        return@forEachIndexed
+                    }
+                    val fallback = name.substringBeforeLast('.').ifBlank { "未命名笔记" }
+                    val parsed = MarkdownChat.parse(raw, fallback)
+                    if (parsed.messages.isEmpty()) {
+                        skipped++
+                        return@forEachIndexed
+                    }
+
+                    val convId = "md-" + sha1("$name|${parsed.title}").take(20)
+                    val mtime = DocumentFile.fromSingleUri(ctx, uri)?.lastModified()?.div(1000) ?: 0L
+                    val baseTs = if (mtime > 0) mtime else System.currentTimeMillis() / 1000
+                    val existing = store.existingUpdateTs(convId)
+                    if (existing != null && existing >= baseTs) {
+                        skipped++
+                        return@forEachIndexed
+                    }
+                    val chars = parsed.messages.sumOf { it.text.length }
+
+                    db.beginTransaction()
+                    try {
+                        val keepStar = existing != null && store.starOf(convId)
+                        val keepAlias = store.aliasOf(convId)
+                        store.clearConvContent(db, convId)
+                        store.putConversation(
+                            db,
+                            Conversation(
+                                id = convId,
+                                title = parsed.title,
+                                createTs = baseTs,
+                                updateTs = baseTs,
+                                msgCount = parsed.messages.size,
+                                charCount = chars,
+                                model = null,
+                                category = Classifier.classify(parsed.title),
+                                starred = keepStar,
+                                attachmentCount = 0,
+                                alias = keepAlias
+                            )
+                        )
+                        parsed.messages.forEachIndexed { ord, m ->
+                            val msg = Message(
+                                id = "$convId-$ord",
+                                convId = convId,
+                                role = m.role,
+                                text = m.text,
+                                reasoning = m.reasoning,
+                                ts = baseTs + ord,
+                                order = ord,
+                                contentType = "text",
+                                model = null
+                            )
+                            store.putMessage(db, msg)
+                            store.putCodeBlocksForMessage(db, msg)
+                        }
+                        db.setTransactionSuccessful()
+                    } finally {
+                        db.endTransaction()
+                    }
+                    msgTotal += parsed.messages.size
+                    if (existing == null) added++ else updated++
+                } catch (t: Throwable) {
+                    skipped++
+                }
+            }
+
+            ImportSummary(
+                added = added,
+                updated = updated,
+                skipped = skipped,
+                messages = msgTotal,
+                attachments = 0,
+                missing = 0,
+                orphanFiles = 0,
+                files = uris.size,
+                mdFiles = added + updated
+            )
+        }
+
+    private fun readUriText(uri: Uri): String {
+        val bytes = ctx.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return ""
+        val utf8 = String(bytes, Charsets.UTF_8)
+        val bad = utf8.count { it == '\uFFFD' }
+        return if (bad > 0 && bad * 20 > utf8.length) {
+            runCatching { String(bytes, charset("GBK")) }.getOrDefault(utf8)
+        } else utf8
+    }
+
+    private fun readFileText(file: File, limit: Int): String {
+        if (!file.exists() || file.length() == 0L) return ""
+        return runCatching {
+            file.bufferedReader().use { r ->
+                val buf = CharArray(limit)
+                var n = 0
+                while (n < limit) {
+                    val read = r.read(buf, n, limit - n)
+                    if (read <= 0) break
+                    n += read
+                }
+                String(buf, 0, n)
+            }
+        }.getOrDefault("")
+    }
+
+    private fun sha1(s: String): String =
+        MessageDigest.getInstance("SHA-1").digest(s.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
+
+    // ================= 解析辅助 =================
+
+    private fun parseContent(content: JSONObject?): ParsedContent {
+        val sb = StringBuilder()
+        val pointers = LinkedHashSet<String>()
+        val ctype = content?.optString("content_type")?.ifBlank { "text" } ?: "text"
+        val parts = content?.optJSONArray("parts")
+        if (parts != null) {
+            for (p in 0 until parts.length()) {
+                when (val part = parts.opt(p)) {
+                    is String -> sb.append(part)
+                    is JSONObject -> {
+                        val t = part.optString("text", "")
+                        if (t.isNotEmpty()) sb.append(t)
+                        val ptr = part.optString("asset_pointer", "")
+                        if (ptr.startsWith("file-service://")) {
+                            pointers.add(ptr.removePrefix("file-service://"))
+                        }
+                    }
+                }
+            }
+        }
+        return ParsedContent(sb.toString(), pointers.toList(), ctype)
+    }
+
     /** 沿 current_node 向上回溯，得到真正展示的对话路径 */
     private fun buildPath(mapping: JSONObject, current: String): List<String> {
-        if (current.isBlank()) {
-            // 兜底：找没有子节点的叶子
-            return emptyList()
-        }
+        if (current.isBlank()) return emptyList()
         val ids = ArrayList<String>()
         var cur: String? = current
         val guard = HashSet<String>()

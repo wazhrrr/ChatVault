@@ -30,10 +30,18 @@ object Fmt {
     private val dt = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.CHINA)
     private val d = SimpleDateFormat("yyyy-MM-dd", Locale.CHINA)
     private val hm = SimpleDateFormat("HH:mm", Locale.CHINA)
+    private val ym = SimpleDateFormat("yyyy-MM", Locale.CHINA)
+    private val ymLabel = SimpleDateFormat("yyyy年M月", Locale.CHINA)
 
     fun dateTime(sec: Long): String = if (sec <= 0) "—" else dt.format(Date(sec * 1000))
     fun date(sec: Long): String = if (sec <= 0) "—" else d.format(Date(sec * 1000))
     fun time(sec: Long): String = if (sec <= 0) "" else hm.format(Date(sec * 1000))
+
+    /** 代码片段按月分组：2026-10 */
+    fun monthKey(sec: Long): String = if (sec <= 0) "0000-00" else ym.format(Date(sec * 1000))
+
+    /** 代码片段按月分组标题：2026年10月 */
+    fun monthLabel(sec: Long): String = if (sec <= 0) "未知时间" else ymLabel.format(Date(sec * 1000))
 
     fun ago(sec: Long): String {
         if (sec <= 0) return "—"

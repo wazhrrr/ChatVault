@@ -5,14 +5,20 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.r.chatvault.data.Attachment
+import com.r.chatvault.data.ClipItem
+import com.r.chatvault.data.CodeItem
 import com.r.chatvault.data.Conversation
+import com.r.chatvault.data.ImportReport
 import com.r.chatvault.data.Importer
 import com.r.chatvault.data.Message
+import com.r.chatvault.data.NamedCount
 import com.r.chatvault.data.Prefs
 import com.r.chatvault.data.SearchHit
 import com.r.chatvault.data.SortMode
 import com.r.chatvault.data.StatsBundle
 import com.r.chatvault.data.Store
+import com.r.chatvault.data.TagCount
+import com.r.chatvault.util.BackupManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -22,7 +28,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-enum class Screen { CHATS, SEARCH, STATS, FILES, SETTINGS }
+enum class Screen { CHATS, SEARCH, CLIPS, CODE, STATS, FILES, SETTINGS }
 
 data class UiState(
     val loading: Boolean = true,
@@ -39,9 +45,19 @@ data class UiState(
     val query: String = "",
     val hits: List<SearchHit> = emptyList(),
     val searching: Boolean = false,
+    val searchTypes: Set<String> = emptySet(),
     val starredOnly: Boolean = false,
     val year: Int? = null,
+    val category: String? = null,
+    val model: String? = null,
+    val dateFrom: Long? = null,
+    val dateTo: Long? = null,
     val sort: SortMode = SortMode.NEWEST,
+    val tagFilter: String? = null,
+    val tags: List<TagCount> = emptyList(),
+    val filterCategories: List<String> = emptyList(),
+    val filterModels: List<String> = emptyList(),
+    val filterYears: List<Int> = emptyList(),
     val stats: StatsBundle? = null,
     val allFiles: List<Attachment> = emptyList(),
     val importing: Boolean = false,
@@ -49,16 +65,31 @@ data class UiState(
     val progress: Float = 0f,
     val toast: String? = null,
     val jumpMessageId: String? = null,
+    val jumpQuery: String? = null,
     val themeMode: Int = 1,
     val fontScale: Float = 1f,
-    val codeWrap: Boolean = true
-)
+    val codeWrap: Boolean = true,
+    val clips: List<ClipItem> = emptyList(),
+    val clipQuery: String = "",
+    val clipTag: String? = null,
+    val clipTags: List<String> = emptyList(),
+    val clipCount: Int = 0,
+    val codeItems: List<CodeItem> = emptyList(),
+    val codeQuery: String = "",
+    val codeLang: String? = null,
+    val codeLangs: List<NamedCount> = emptyList(),
+    val importReport: ImportReport? = null
+) {
+    val filterCount: Int
+        get() = listOfNotNull(year, category, model, dateFrom, dateTo).size
+}
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private val store = Store(app)
     val prefs = Prefs(app)
     private val importer = Importer(app, store)
+    private val backupManager = BackupManager(app, store)
 
     private val _state = MutableStateFlow(
         UiState(
@@ -73,37 +104,68 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         refresh()
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { store.ensureDerivedData() }
+            loadClips()
+            loadCode()
+        }
     }
 
     fun refresh() {
         viewModelScope.launch {
-            val (list, triple) = withContext(Dispatchers.IO) {
+            val data = withContext(Dispatchers.IO) {
                 val s = _state.value
-                store.listConversations(s.starredOnly, s.year, s.sort) to store.counts()
+                val list = store.listConversations(
+                    s.starredOnly, s.year, s.sort, s.category, s.tagFilter, s.model, s.dateFrom, s.dateTo
+                )
+                val counts = store.counts()
+                val tags = store.allTags()
+                val clipCount = store.clipCount()
+                val cats = store.categoryNames()
+                val models = store.modelNames()
+                val years = store.yearList()
+                RefreshData(list, counts, tags, clipCount, cats, models, years)
             }
             _state.update {
                 it.copy(
                     loading = false,
-                    conversations = list,
-                    totalConvs = triple.first,
-                    totalMsgs = triple.second,
-                    totalAtts = triple.third
+                    conversations = data.list,
+                    totalConvs = data.counts.first,
+                    totalMsgs = data.counts.second,
+                    totalAtts = data.counts.third,
+                    tags = data.tags,
+                    clipCount = data.clipCount,
+                    filterCategories = data.categories,
+                    filterModels = data.models,
+                    filterYears = data.years
                 )
             }
             if (_state.value.screen == Screen.STATS) loadStats()
         }
     }
 
+    private data class RefreshData(
+        val list: List<Conversation>,
+        val counts: Triple<Int, Int, Int>,
+        val tags: List<TagCount>,
+        val clipCount: Int,
+        val categories: List<String>,
+        val models: List<String>,
+        val years: List<Int>
+    )
+
     fun setScreen(screen: Screen) {
         _state.update { it.copy(screen = screen) }
         when (screen) {
             Screen.STATS -> loadStats()
             Screen.FILES -> loadFiles()
+            Screen.CLIPS -> loadClips()
+            Screen.CODE -> loadCode()
             else -> {}
         }
     }
 
-    fun openConversation(id: String) {
+    fun openConversation(id: String, jumpMsgId: String? = null, jumpQuery: String? = null) {
         viewModelScope.launch {
             val data = withContext(Dispatchers.IO) {
                 val conv = store.conversation(id)
@@ -118,22 +180,33 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     messages = data.second,
                     convAttachments = data.third,
                     attachments = data.third.groupBy { a -> a.msgId ?: "" },
-                    jumpMessageId = null
+                    jumpMessageId = jumpMsgId,
+                    jumpQuery = jumpQuery
                 )
             }
         }
     }
 
     fun closeConversation() {
-        _state.update { it.copy(selectedId = null, selected = null, messages = emptyList(), attachments = emptyMap(), convAttachments = emptyList()) }
+        _state.update {
+            it.copy(
+                selectedId = null,
+                selected = null,
+                messages = emptyList(),
+                attachments = emptyMap(),
+                convAttachments = emptyList(),
+                jumpMessageId = null,
+                jumpQuery = null
+            )
+        }
     }
 
-    fun jumpToMessage(id: String) {
-        _state.update { it.copy(jumpMessageId = id) }
+    fun jumpToMessage(id: String, query: String? = null) {
+        _state.update { it.copy(jumpMessageId = id, jumpQuery = query) }
     }
 
     fun consumeJump() {
-        _state.update { it.copy(jumpMessageId = null) }
+        _state.update { it.copy(jumpMessageId = null, jumpQuery = null) }
     }
 
     fun toggleStar() {
@@ -166,6 +239,91 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         refresh()
     }
 
+    fun setTagFilter(tag: String?) {
+        _state.update { it.copy(tagFilter = tag) }
+        refresh()
+    }
+
+    fun saveConvMeta(id: String, alias: String?, tags: List<String>) {
+        viewModelScope.launch {
+            val conv = withContext(Dispatchers.IO) {
+                store.setAlias(id, alias)
+                store.setTags(id, tags)
+                store.conversation(id)
+            }
+            _state.update {
+                it.copy(
+                    selected = if (it.selectedId == id) conv else it.selected,
+                    conversations = it.conversations.map { c -> if (c.id == id && conv != null) conv else c }
+                )
+            }
+            refresh()
+        }
+    }
+
+    fun setStar(id: String, starred: Boolean) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { store.setStar(id, starred) }
+            _state.update {
+                it.copy(
+                    selected = if (it.selected?.id == id) it.selected.copy(starred = starred) else it.selected,
+                    conversations = it.conversations.map { c ->
+                        if (c.id == id) c.copy(starred = starred) else c
+                    }
+                )
+            }
+        }
+    }
+
+    fun applyFilters(
+        sort: SortMode,
+        year: Int?,
+        category: String?,
+        model: String?,
+        fromTs: Long?,
+        toTs: Long?
+    ) {
+        _state.update {
+            it.copy(
+                sort = sort,
+                year = year,
+                category = category,
+                model = model,
+                dateFrom = fromTs,
+                dateTo = toTs
+            )
+        }
+        refresh()
+        loadStats()
+    }
+
+    fun resetFilters() {
+        applyFilters(SortMode.NEWEST, null, null, null, null, null)
+    }
+
+    fun deleteConversation(id: String) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { store.deleteConversation(id) }
+            _state.update {
+                val clear = it.selectedId == id
+                it.copy(
+                    selectedId = if (clear) null else it.selectedId,
+                    selected = if (clear) null else it.selected,
+                    messages = if (clear) emptyList() else it.messages,
+                    attachments = if (clear) emptyMap() else it.attachments,
+                    convAttachments = if (clear) emptyList() else it.convAttachments,
+                    screen = if (clear) Screen.CHATS else it.screen,
+                    toast = "已删除会话"
+                )
+            }
+            refresh()
+            loadStats()
+            loadClips()
+            loadCode()
+            loadFiles()
+        }
+    }
+
     fun search(q: String) {
         _state.update { it.copy(query = q) }
         searchJob?.cancel()
@@ -176,9 +334,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         searchJob = viewModelScope.launch {
             _state.update { it.copy(searching = true) }
             delay(220)
-            val hits = withContext(Dispatchers.IO) { store.search(q) }
+            val types = _state.value.searchTypes
+            val hits = withContext(Dispatchers.IO) { store.searchAll(q, types) }
             _state.update { it.copy(hits = hits, searching = false) }
         }
+    }
+
+    fun setSearchTypes(types: Set<String>) {
+        _state.update { it.copy(searchTypes = types) }
+        val q = _state.value.query
+        if (q.isNotBlank()) search(q)
     }
 
     suspend fun searchInConv(convId: String, q: String): List<SearchHit> =
@@ -186,9 +351,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun loadStats() {
         viewModelScope.launch {
-            val year = _state.value.year
-            val s = withContext(Dispatchers.IO) { store.stats(year) }
-            _state.update { it.copy(stats = s) }
+            val s = _state.value
+            val stats = withContext(Dispatchers.IO) {
+                store.stats(s.year, s.category, s.model, s.dateFrom, s.dateTo)
+            }
+            _state.update { it.copy(stats = stats) }
         }
     }
 
@@ -198,6 +365,103 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             _state.update { it.copy(allFiles = files) }
         }
     }
+
+    fun loadClips() {
+        viewModelScope.launch {
+            val s = _state.value
+            val (clips, count, allTags) = withContext(Dispatchers.IO) {
+                val all = store.clips(null, null)
+                val tagList = all.flatMap { it.tagList }
+                    .groupingBy { it }.eachCount()
+                    .entries.sortedByDescending { it.value }
+                    .take(16).map { it.key }
+                Triple(store.clips(s.clipQuery, s.clipTag), store.clipCount(), tagList)
+            }
+            _state.update { it.copy(clips = clips, clipCount = count, clipTags = allTags) }
+        }
+    }
+
+    fun setClipQuery(q: String) {
+        _state.update { it.copy(clipQuery = q) }
+        loadClips()
+    }
+
+    fun setClipTag(tag: String?) {
+        _state.update { it.copy(clipTag = tag) }
+        loadClips()
+    }
+
+    fun addClip(convId: String?, msgId: String?, text: String, note: String, tags: String) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                store.addClip(convId, msgId, text.take(20_000), note.trim().ifBlank { null }, tags, "clip")
+            }
+            _state.update { it.copy(toast = "已保存到摘录") }
+            loadClips()
+        }
+    }
+
+    fun bookmark(msg: Message) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                store.addClip(msg.convId, msg.id, msg.text.take(20_000), null, "", "bookmark")
+            }
+            _state.update { it.copy(toast = "已加入书签") }
+            loadClips()
+        }
+    }
+
+    fun updateClip(id: Long, note: String, tags: String) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                store.updateClip(id, note.trim().ifBlank { null }, tags)
+            }
+            _state.update { it.copy(toast = "备注与标签已更新") }
+            loadClips()
+        }
+    }
+
+    fun revertClip(id: Long) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { store.revertClip(id) }
+            _state.update { it.copy(toast = "已还原上次修改") }
+            loadClips()
+        }
+    }
+
+    fun deleteClip(id: Long) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { store.deleteClip(id) }
+            _state.update { it.copy(toast = "已删除摘录") }
+            loadClips()
+        }
+    }
+
+    fun loadCode() {
+        viewModelScope.launch {
+            val s = _state.value
+            val (items, langs) = withContext(Dispatchers.IO) {
+                store.codeBlocks(s.codeLang, s.codeQuery) to store.codeLanguages()
+            }
+            _state.update { it.copy(codeItems = items, codeLangs = langs) }
+        }
+    }
+
+    fun setCodeLang(lang: String?) {
+        _state.update { it.copy(codeLang = lang) }
+        loadCode()
+    }
+
+    fun setCodeQuery(q: String) {
+        _state.update { it.copy(codeQuery = q) }
+        loadCode()
+    }
+
+    suspend fun childrenOf(msgId: String): List<Message> =
+        withContext(Dispatchers.IO) { store.childrenOf(msgId) }
+
+    suspend fun branchChain(startId: String): List<Message> =
+        withContext(Dispatchers.IO) { store.branchChain(startId) }
 
     fun importPackage(uri: Uri, force: Boolean = false, takePermission: Boolean = true) {
         if (_state.value.importing) return
@@ -219,21 +483,135 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         )
                     }
                 }
+                val report = withContext(Dispatchers.IO) {
+                    ImportReport(
+                        summary = summary,
+                        missing = if (summary.missing > 0) store.missingAttachments() else emptyList(),
+                        orphans = if (summary.orphanFiles > 0) store.orphanAttachments() else emptyList()
+                    )
+                }
                 _state.update {
                     it.copy(
                         importing = false,
                         progress = 1f,
-                        toast = "导入完成：新增 ${summary.added} · 更新 ${summary.updated} · 跳过 ${summary.skipped}，" +
-                            "共 ${summary.messages} 条消息、${summary.attachments} 个附件" +
-                            if (summary.missing > 0) "（${summary.missing} 个附件缺失）" else ""
+                        importReport = report,
+                        toast = null
+                    )
+                }
+                android.util.Log.d(
+                    "ChatVault",
+                    "import done: added=${summary.added} updated=${summary.updated} skipped=${summary.skipped} " +
+                        "missing=${report.missing.size} orphans=${report.orphans.size}"
+                )
+                refresh()
+                loadStats()
+                loadClips()
+                loadCode()
+                val id = _state.value.selectedId
+                if (id != null) openConversation(id)
+            } catch (t: Throwable) {
+                android.util.Log.e("ChatVault", "import failed", t)
+                _state.update { it.copy(importing = false, toast = "导入失败：${t.message ?: "未知错误"}") }
+            }
+        }
+    }
+
+    fun importMarkdown(uris: List<Uri>) {
+        if (_state.value.importing || uris.isEmpty()) return
+        viewModelScope.launch {
+            _state.update { it.copy(importing = true, phase = "准备导入 Markdown", progress = 0f) }
+            try {
+                val summary = importer.importMarkdown(uris) { p ->
+                    _state.update {
+                        it.copy(
+                            phase = p.phase,
+                            progress = if (p.total > 0) p.done.toFloat() / p.total else 0f
+                        )
+                    }
+                }
+                _state.update {
+                    it.copy(
+                        importing = false,
+                        progress = 1f,
+                        importReport = ImportReport(summary),
+                        toast = null
                     )
                 }
                 refresh()
                 loadStats()
-                val id = _state.value.selectedId
-                if (id != null) openConversation(id)
+                loadClips()
+                loadCode()
             } catch (t: Throwable) {
                 _state.update { it.copy(importing = false, toast = "导入失败：${t.message ?: "未知错误"}") }
+            }
+        }
+    }
+
+    fun backupTo(uri: Uri) {
+        if (_state.value.importing) return
+        viewModelScope.launch {
+            _state.update { it.copy(importing = true, phase = "准备备份", progress = 0f) }
+            try {
+                val bytes = backupManager.backup(uri) { p ->
+                    _state.update {
+                        it.copy(
+                            phase = p.phase,
+                            progress = if (p.total > 0) p.done.toFloat() / p.total else 0f
+                        )
+                    }
+                }
+                _state.update {
+                    it.copy(
+                        importing = false,
+                        progress = 1f,
+                        toast = "备份完成：${com.r.chatvault.data.Fmt.bytes(bytes)}"
+                    )
+                }
+            } catch (t: Throwable) {
+                _state.update { it.copy(importing = false, toast = "备份失败：${t.message ?: "未知错误"}") }
+            }
+        }
+    }
+
+    fun restoreFrom(uri: Uri) {
+        if (_state.value.importing) return
+        viewModelScope.launch {
+            _state.update { it.copy(importing = true, phase = "准备恢复", progress = 0f) }
+            try {
+                val result = backupManager.restore(uri) { p ->
+                    _state.update {
+                        it.copy(
+                            phase = p.phase,
+                            progress = if (p.total > 0) p.done.toFloat() / p.total else 0f
+                        )
+                    }
+                }
+                // 如果恢复的是旧版本备份，补齐代码块与附件文本索引
+                withContext(Dispatchers.IO) { store.ensureDerivedData() }
+                _state.update {
+                    it.copy(
+                        importing = false,
+                        progress = 1f,
+                        selectedId = null,
+                        selected = null,
+                        messages = emptyList(),
+                        attachments = emptyMap(),
+                        convAttachments = emptyList(),
+                        stats = null,
+                        allFiles = emptyList(),
+                        clips = emptyList(),
+                        codeItems = emptyList(),
+                        importReport = null,
+                        toast = "恢复完成：${result.conversations} 个会话 / ${result.messages} 条消息"
+                    )
+                }
+                refresh()
+                loadStats()
+                loadFiles()
+                loadClips()
+                loadCode()
+            } catch (t: Throwable) {
+                _state.update { it.copy(importing = false, toast = "恢复失败：${t.message ?: "未知错误"}") }
             }
         }
     }
@@ -242,12 +620,41 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 store.clearAll()
-                getApplication<Application>().filesDir.resolve("blobs").deleteRecursively()
+                val files = getApplication<Application>().filesDir
+                files.resolve("blobs").deleteRecursively()
+                files.resolve("blobs.bak").deleteRecursively()
+                files.resolve("backup").deleteRecursively()
             }
             _state.update {
-                it.copy(selectedId = null, selected = null, messages = emptyList(), conversations = emptyList(),
-                    stats = null, allFiles = emptyList(), totalConvs = 0, totalMsgs = 0, totalAtts = 0,
-                    toast = "已清空本地数据")
+                it.copy(
+                    selectedId = null,
+                    selected = null,
+                    messages = emptyList(),
+                    conversations = emptyList(),
+                    stats = null,
+                    allFiles = emptyList(),
+                    clips = emptyList(),
+                    codeItems = emptyList(),
+                    codeLangs = emptyList(),
+                    tags = emptyList(),
+                    tagFilter = null,
+                    year = null,
+                    category = null,
+                    model = null,
+                    dateFrom = null,
+                    dateTo = null,
+                    filterCategories = emptyList(),
+                    filterModels = emptyList(),
+                    filterYears = emptyList(),
+                    clipCount = 0,
+                    importReport = null,
+                    query = "",
+                    hits = emptyList(),
+                    totalConvs = 0,
+                    totalMsgs = 0,
+                    totalAtts = 0,
+                    toast = "已清空本地数据"
+                )
             }
             refresh()
         }
@@ -255,6 +662,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun toast(msg: String?) {
         _state.update { it.copy(toast = msg) }
+    }
+
+    fun consumeToast() {
+        _state.update { it.copy(toast = null) }
+    }
+
+    fun consumeImportReport() {
+        _state.update { it.copy(importReport = null) }
     }
 
     fun setThemeMode(mode: Int) {
@@ -270,9 +685,5 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setCodeWrap(v: Boolean) {
         prefs.codeWrap = v
         _state.update { it.copy(codeWrap = v) }
-    }
-
-    fun consumeToast() {
-        _state.update { it.copy(toast = null) }
     }
 }

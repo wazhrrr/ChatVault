@@ -67,8 +67,16 @@ android {
 
 // 按版本隔离产物：assemble 后把 APK 收进 dist/v<版本号>/
 tasks.register('collectApk', Copy) {
-    from layout.buildDirectory.dir('outputs/apk')
-    include '**/*.apk'
+    // 只收 app 自己的产物，避免把 outputs/apk/androidTest/** 也算成输入
+    // （否则会触发 "packageDebugAndroidTest 未声明依赖" 的 Gradle 校验错误）
+    from(layout.buildDirectory.dir('outputs/apk/debug')) {
+        include '*.apk'
+        exclude '*androidTest*'
+    }
+    from(layout.buildDirectory.dir('outputs/apk/release')) {
+        include '*.apk'
+        exclude '*androidTest*'
+    }
     includeEmptyDirs = false
     into rootProject.file("dist/v${appVersionName}")
     eachFile { details -> details.path = details.name }
