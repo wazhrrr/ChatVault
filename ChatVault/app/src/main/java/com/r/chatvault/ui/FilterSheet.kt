@@ -27,17 +27,23 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SheetState
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.r.chatvault.data.SortMode
 import java.time.Instant
@@ -88,9 +94,48 @@ fun FilterSheet(
         FilterDraft(sort, year, category, model, dateFrom, dateTo)
     }
 
+    // M3 把“下拉关闭”的位移阈值写死成 56dp，内容里轻轻一拖就关掉。
+    // 这里用 confirmValueChange 兜一层：手势至少要拉过 140dp 才允许隐藏；
+    // 点遮罩/返回时位移是 0，直接放行。
+    val density = LocalDensity.current
+    val restingOffset = remember { mutableStateOf<Float?>(null) }
+    val stateBox = remember { arrayOfNulls<SheetState>(1) }
+    val confirmHide: (SheetValue) -> Boolean = remember {
+        { target ->
+            if (target != SheetValue.Hidden) {
+                true
+            } else {
+                val st = stateBox[0]
+                val base = restingOffset.value
+                val offset = st?.let { runCatching { it.requireOffset() }.getOrNull() }
+                if (st == null || base == null || offset == null) {
+                    true
+                } else {
+                    val draggedDp = with(density) { (offset - base).toDp().value }
+                    draggedDp < 1f || draggedDp > 140f
+                }
+            }
+        }
+    }
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = confirmHide
+    )
+    SideEffect { stateBox[0] = sheetState }
+    LaunchedEffect(sheetState) {
+        // 展开后的位移是整个过程的最小值；下拉只会让它变大，所以取最小值当基准
+        snapshotFlow { runCatching { sheetState.requireOffset() }.getOrNull() }
+            .collect { offset ->
+                if (offset != null) {
+                    val base = restingOffset.value
+                    if (base == null || offset < base) restingOffset.value = offset
+                }
+            }
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        sheetState = sheetState
     ) {
         Column(
             Modifier

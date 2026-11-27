@@ -176,7 +176,7 @@ fun SettingsScreen(
             )
             HorizontalDivider(Modifier.padding(vertical = 10.dp), color = MaterialTheme.colorScheme.outlineVariant)
             Text(
-                "阅读顺序建议：先导入 → 抽屉里按主题翻 → 搜索定位 → 摘录沉淀 → 统计看节奏。",
+                "GitHub",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

@@ -102,7 +102,9 @@ data class CodeItem(
     val lang: String,
     val code: String,
     val ts: Long,
-    val convTitle: String?
+    val convTitle: String?,
+    /** 消息在会话里的顺序，用来稳定同一时间戳下的排序 */
+    val ord: Int = 0
 )
 
 data class TagCount(val name: String, val count: Int)

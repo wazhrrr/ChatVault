@@ -224,7 +224,9 @@ class Importer(private val ctx: Context, private val store: Store) {
 
                     val md = msg.optJSONObject("metadata")
                     val ts = msg.optDouble("create_time", 0.0).toLong().takeIf { it > 0 } ?: createSec
-                    val model = md?.optString("model_slug")?.ifBlank { null } ?: defaultModel
+                    // optString 会把 JSON null 变成字符串 "null"，这里显式排除
+                    val slug = if (md == null || md.isNull("model_slug")) null else md.optString("model_slug")
+                    val model = slug?.ifBlank { null } ?: defaultModel
                     val isActive = nodeId in activeSet
 
                     if (isActive && md != null) {

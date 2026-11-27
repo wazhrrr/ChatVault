@@ -77,7 +77,12 @@ fun CodeScreen(vm: AppViewModel, state: UiState, onOpen: (String, String) -> Uni
                         convId = convId,
                         title = list.firstOrNull()?.convTitle ?: "未命名会话",
                         ts = list.maxOf { it.ts },
-                        items = list.sortedByDescending { it.ts }
+                        // 新消息在前；同一条消息里的多个代码块按抽取顺序（id 递增）排列
+                    items = list.sortedWith(
+                        compareByDescending<CodeItem> { it.ts }
+                            .thenByDescending { it.ord }
+                            .thenBy { it.id }
+                    )
                     )
                 }.sortedByDescending { it.ts }
                 MonthCodeGroup(

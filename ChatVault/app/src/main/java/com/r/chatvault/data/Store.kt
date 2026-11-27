@@ -427,10 +427,17 @@ class Store(context: Context) : SQLiteOpenHelper(context, "chatvault.db", null, 
             args.add(category)
         }
         if (!model.isNullOrBlank()) {
-            where.append(
-                " AND EXISTS (SELECT 1 FROM messages mm WHERE mm.conv_id = c.id AND mm.active = 1 AND mm.model = ?)"
-            )
-            args.add(model)
+            if (model == MODEL_UNKNOWN) {
+                where.append(
+                    " AND EXISTS (SELECT 1 FROM messages mm WHERE mm.conv_id = c.id AND mm.active = 1 " +
+                        "AND " + unknownModelSql("mm.model") + ")"
+                )
+            } else {
+                where.append(
+                    " AND EXISTS (SELECT 1 FROM messages mm WHERE mm.conv_id = c.id AND mm.active = 1 AND mm.model = ?)"
+                )
+                args.add(model)
+            }
         }
         if (fromTs != null) {
             where.append(" AND c.create_ts >= ?")
@@ -669,12 +676,23 @@ class Store(context: Context) : SQLiteOpenHelper(context, "chatvault.db", null, 
         return out
     }
 
+    /** 消息没有记录模型时的 SQL 判定（含历史脏值 "null"） */
+    private fun unknownModelSql(col: String) =
+        "($col IS NULL OR $col = '' OR $col = 'null')"
+
     fun modelNames(): List<String> {
         val out = ArrayList<String>()
         readableDatabase.rawQuery(
             "SELECT DISTINCT model FROM messages WHERE model IS NOT NULL AND model != '' " +
-                "ORDER BY model LIMIT 30", null
+                "AND model != 'null' ORDER BY model LIMIT 30", null
         ).use { c -> while (c.moveToNext()) out.add(c.getString(0)) }
+        // 「未记录」固定放最后，和统计图的 COALESCE(NULLIF(model, ''), '未记录') 对齐
+        if (out.size < 31) {
+            val unknown = scalar(
+                "SELECT COUNT(*) FROM messages WHERE active = 1 AND " + unknownModelSql("model")
+            )
+            if (unknown > 0) out.add(MODEL_UNKNOWN)
+        }
         return out
     }
 
@@ -791,9 +809,10 @@ class Store(context: Context) : SQLiteOpenHelper(context, "chatvault.db", null, 
             where.append(")")
         }
         val sql = """
-            SELECT cb.id, cb.conv_id, cb.msg_id, cb.lang, cb.code, cb.ts, COALESCE(c.alias, c.title)
+            SELECT cb.id, cb.conv_id, cb.msg_id, cb.lang, cb.code, cb.ts,
+                   COALESCE(c.alias, c.title), cb.ord
             FROM code_blocks cb LEFT JOIN conversations c ON c.id = cb.conv_id
-            WHERE $where ORDER BY cb.ts DESC LIMIT 5000
+            WHERE $where ORDER BY cb.ts DESC, cb.ord DESC, cb.id ASC LIMIT 5000
         """.trimIndent()
         val out = ArrayList<CodeItem>()
         readableDatabase.rawQuery(sql, args.toTypedArray()).use { c ->
@@ -806,7 +825,8 @@ class Store(context: Context) : SQLiteOpenHelper(context, "chatvault.db", null, 
                         lang = c.getString(3) ?: "text",
                         code = c.getString(4) ?: "",
                         ts = c.getLong(5),
-                        convTitle = c.getString(6)
+                        convTitle = c.getString(6),
+                        ord = c.getInt(7)
                     )
                 )
             }
@@ -1151,8 +1171,17 @@ class Store(context: Context) : SQLiteOpenHelper(context, "chatvault.db", null, 
             convArgs.add(category)
         }
         if (!model.isNullOrBlank()) {
-            convWhere.append(" AND EXISTS (SELECT 1 FROM messages mm WHERE mm.conv_id = c.id AND mm.active = 1 AND mm.model = ?)")
-            convArgs.add(model)
+            if (model == MODEL_UNKNOWN) {
+                convWhere.append(
+                    " AND EXISTS (SELECT 1 FROM messages mm WHERE mm.conv_id = c.id AND mm.active = 1 " +
+                        "AND " + unknownModelSql("mm.model") + ")"
+                )
+            } else {
+                convWhere.append(
+                    " AND EXISTS (SELECT 1 FROM messages mm WHERE mm.conv_id = c.id AND mm.active = 1 AND mm.model = ?)"
+                )
+                convArgs.add(model)
+            }
         }
         if (fromTs != null) {
             convWhere.append(" AND c.create_ts >= ?")
@@ -1198,8 +1227,12 @@ class Store(context: Context) : SQLiteOpenHelper(context, "chatvault.db", null, 
             msgArgs.add(toTs.toString())
         }
         if (!model.isNullOrBlank()) {
-            msgWhere.append(" AND m.model = ?")
-            msgArgs.add(model)
+            if (model == MODEL_UNKNOWN) {
+                msgWhere.append(" AND " + unknownModelSql("m.model"))
+            } else {
+                msgWhere.append(" AND m.model = ?")
+                msgArgs.add(model)
+            }
         }
 
         val monthly = LinkedHashMap<String, Triple<Int, Int, Int>>()
@@ -1237,7 +1270,7 @@ class Store(context: Context) : SQLiteOpenHelper(context, "chatvault.db", null, 
 
         val models = ArrayList<NamedCount>()
         db.rawQuery(
-            "SELECT COALESCE(NULLIF(m.model, ''), '未记录') m, COUNT(*) FROM messages m " +
+            "SELECT COALESCE(NULLIF(NULLIF(m.model, ''), 'null'), '未记录') m, COUNT(*) FROM messages m " +
                 "WHERE $msgWhere AND m.role = 'assistant' GROUP BY m ORDER BY 2 DESC LIMIT 10",
             msgArgs.toTypedArray()
         ).use { c -> while (c.moveToNext()) models.add(NamedCount(c.getString(0), c.getInt(1))) }
@@ -1317,5 +1350,8 @@ class Store(context: Context) : SQLiteOpenHelper(context, "chatvault.db", null, 
 
     companion object {
         const val DB_VERSION = 3
+
+        /** 消息没有记录模型时，筛选面板里的显示名 */
+        const val MODEL_UNKNOWN = "未记录"
     }
 }
