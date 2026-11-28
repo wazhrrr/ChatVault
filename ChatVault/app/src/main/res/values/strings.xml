@@ -376,4 +376,5 @@
     <string name="common_export_chat">Export chat</string>
     <string name="title_hit_snippet">%1$d messages · %2$s</string>
     <string name="md_image">Image</string>
+    <string name="ui_chart">Chart</string>
 </resources>

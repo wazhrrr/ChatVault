@@ -373,4 +373,5 @@
     <string name="common_export_chat">导出会话</string>
     <string name="title_hit_snippet">%1$d 条消息 · %2$s</string>
     <string name="md_image">图片</string>
+    <string name="ui_chart">图表</string>
 </resources>

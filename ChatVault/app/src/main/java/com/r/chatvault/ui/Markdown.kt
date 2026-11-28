@@ -20,7 +20,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -43,7 +42,9 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.r.chatvault.data.Palette
+import com.r.chatvault.data.UiNode
+import com.r.chatvault.data.UiTemplate
+import com.r.chatvault.data.uiMarkerIndex
 
 sealed interface MdBlock {
     data class Heading(val level: Int, val text: String) : MdBlock
@@ -52,52 +53,17 @@ sealed interface MdBlock {
     data class Bullets(val items: List<String>, val ordered: Boolean) : MdBlock
     data class Quote(val text: String) : MdBlock
     data class Table(val rows: List<List<String>>) : MdBlock
-    /** ChatGPT 富文本里的 <badge color="success">文字</badge> */
-    data class Badge(val text: String, val tone: String?) : MdBlock
-    /** <AsyncImage .../>：导出包里没有图片实体，用占位块表示 */
-    data class Image(val query: String, val ratio: Float) : MdBlock
+    /** ChatGPT 生成式 UI 模板块（badge / 表单 / 卡片 / 表格…），见 UiTemplate */
+    data class Ui(val nodes: List<UiNode>) : MdBlock
     data object Divider : MdBlock
 }
 
-// ---------- ChatGPT 消息里的富文本标签 ----------
-// 这些不是 Markdown，是 ChatGPT 客户端的 UI 组件语法，直接显示会像一堆代码。
-private val badgeBlockRe = Regex("""^<badge\b([^>]*)>(.*?)</badge>$""")
-private val imageBlockRe = Regex("""^<AsyncImage\b([^>]*)/?>$""")
-private val linkTagRe = Regex("""<Link\b[^>]*?title="([^"]*)"[^>]*/>""")
-private val entityTagRe = Regex("""<Entity\b[^>]*?value="([^"]*)"[^>]*/>""")
-private val citeTagRe = Regex("""<Cite\b[^>]*/>""")
-private val inlineBadgeRe = Regex("""<badge\b[^>]*>(.*?)</badge>""")
-private val inlineMediaRe = Regex("""<(AsyncImage|Image|Video|Audio|File)\b[^>]*/?>""")
-private val containerTagRe = Regex("""</?(row|box|text|span|div|p)\b[^>]*>""")
-
-/** 把一行里的 UI 标签换成可读文本：Link→链接文字、Entity→名称、其它容器标签直接去掉 */
-internal fun sanitizeInline(src: String): String {
-    var t = src
-    t = linkTagRe.replace(t) { m -> "[${m.groupValues[1]}](ref)" }
-    t = entityTagRe.replace(t) { m -> m.groupValues[1] }
-    t = citeTagRe.replace(t, "")
-    t = inlineMediaRe.replace(t, "")
-    t = inlineBadgeRe.replace(t) { m -> m.groupValues[1] }
-    t = containerTagRe.replace(t, "")
-    return t.trim()
-}
-
-private fun attr(attrs: String, name: String): String? =
-    Regex("""\b$name="([^"]*)"""").find(attrs)?.groupValues?.get(1)
-
-private fun ratioOf(attrs: String): Float {
-    val raw = attr(attrs, "aspectRatio") ?: return 16f / 9f
-    val parts = raw.split(":")
-    val r = if (parts.size == 2) {
-        (parts[0].toFloatOrNull() ?: 16f) / (parts[1].toFloatOrNull() ?: 9f)
-    } else {
-        raw.toFloatOrNull() ?: (16f / 9f)
-    }
-    return r.coerceIn(0.6f, 2.4f)
-}
-
 fun parseMarkdown(src: String): List<MdBlock> {
-    val lines = src.replace("\r\n", "\n").split("\n")
+    // 先把 UI 模板整块摘出来，正文仍按 Markdown 解析；代码围栏内不动
+    val extracted = UiTemplate.extract(src)
+    val blocks = extracted.blocks
+    val vars = extracted.vars
+    val lines = extracted.text.replace("\r\n", "\n").split("\n")
     val out = ArrayList<MdBlock>()
     val paragraph = StringBuilder()
     val bullets = ArrayList<String>()
@@ -122,33 +88,18 @@ fun parseMarkdown(src: String): List<MdBlock> {
         val line = lines[i]
         val raw = line.trim()
 
-        val badge = badgeBlockRe.find(raw)
-        if (badge != null) {
-            flushParagraph(); flushBullets()
-            out.add(
-                MdBlock.Badge(
-                    text = sanitizeInline(badge.groupValues[2]),
-                    tone = attr(badge.groupValues[1], "color")
-                )
-            )
-            i++
-            continue
+        val uiIdx = uiMarkerIndex(raw)
+        if (uiIdx != null) {
+            val nodes = blocks.getOrNull(uiIdx)
+            if (nodes != null) {
+                flushParagraph(); flushBullets()
+                out.add(MdBlock.Ui(nodes))
+                i++
+                continue
+            }
         }
 
-        val image = imageBlockRe.find(raw)
-        if (image != null) {
-            flushParagraph(); flushBullets()
-            out.add(
-                MdBlock.Image(
-                    query = attr(image.groupValues[1], "query") ?: "",
-                    ratio = ratioOf(image.groupValues[1])
-                )
-            )
-            i++
-            continue
-        }
-
-        val trimmed = sanitizeInline(raw)
+        val trimmed = UiTemplate.inlineText(raw, vars)
 
         if (trimmed.startsWith("```")) {
             flushParagraph(); flushBullets()
@@ -189,7 +140,7 @@ fun parseMarkdown(src: String): List<MdBlock> {
             flushParagraph(); flushBullets()
             val sb = StringBuilder()
             while (i < lines.size && lines[i].trim().startsWith(">")) {
-                sb.append(sanitizeInline(lines[i].trim().removePrefix(">").trim())).append(' ')
+                sb.append(UiTemplate.inlineText(lines[i].trim().removePrefix(">").trim(), vars)).append(' ')
                 i++
             }
             out.add(MdBlock.Quote(sb.toString().trim()))
@@ -200,7 +151,7 @@ fun parseMarkdown(src: String): List<MdBlock> {
             flushParagraph(); flushBullets()
             val rows = ArrayList<List<String>>()
             while (i < lines.size && isTableLine(lines[i].trim())) {
-                val cells = lines[i].trim().trim('|').split('|').map { sanitizeInline(it.trim()) }
+                val cells = lines[i].trim().trim('|').split('|').map { UiTemplate.inlineText(it.trim(), vars) }
                 val isSeparator = cells.isNotEmpty() && cells.all { it.matches(Regex(":?-{2,}:?")) }
                 if (cells.isNotEmpty() && !isSeparator) rows.add(cells)
                 i++
@@ -401,63 +352,7 @@ fun MarkdownView(
                         )
                     }
 
-                    is MdBlock.Badge -> {
-                        val tone = when (block.tone) {
-                            "success" -> Palette.teal
-                            "warning" -> Palette.amber
-                            "danger", "error" -> Palette.coral
-                            "info" -> Palette.blue
-                            else -> MaterialTheme.colorScheme.primary
-                        }
-                        Box(
-                            Modifier
-                                .background(tone.copy(alpha = 0.16f), RoundedCornerShape(50))
-                                .padding(horizontal = 10.dp, vertical = 4.dp)
-                        ) {
-                            Text(
-                                block.text,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = tone
-                            )
-                        }
-                    }
-
-                    is MdBlock.Image -> {
-                        val height = when {
-                            block.ratio >= 1.5f -> 170.dp
-                            block.ratio >= 1.1f -> 190.dp
-                            else -> 210.dp
-                        }
-                        Column(
-                            Modifier
-                                .fillMaxWidth()
-                                .height(height)
-                                .background(
-                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-                                    RoundedCornerShape(10.dp)
-                                )
-                                .border(
-                                    0.5.dp,
-                                    MaterialTheme.colorScheme.outlineVariant,
-                                    RoundedCornerShape(10.dp)
-                                ),
-                            verticalArrangement = Arrangement.Center,
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Image,
-                                contentDescription = block.query.ifBlank { null },
-                                modifier = Modifier.size(26.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                stringResource(R.string.md_image),
-                                Modifier.padding(top = 6.dp),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
+                    is MdBlock.Ui -> UiTemplateView(block.nodes)
 
                     is MdBlock.Code -> CodeBlock(block.lang, block.code, wrapCode, highlight, colors.highlight)
 
