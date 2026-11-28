@@ -425,7 +425,7 @@ private fun CodeBlock(
 }
 
 @Composable
-private fun TableBlock(
+internal fun TableBlock(
     rows: List<List<String>>,
     highlight: List<String>,
     highlightColor: Color

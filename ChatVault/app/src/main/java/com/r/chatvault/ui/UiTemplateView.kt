@@ -38,6 +38,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -74,10 +75,8 @@ private fun UiNodeView(
 ) {
     when (node) {
         is UiNode.Text -> {
-            val text = node.text.trim()
-            if (text.isNotBlank()) {
-                RichText(text, MaterialTheme.typography.bodyMedium, modifier)
-            }
+            // 容器里的文字也可能带 Markdown（表格/列表/小标题），不能只当纯文本画
+            UiTextBody(node.text, modifier)
         }
 
         is UiNode.If -> node.branches.firstOrNull()?.children?.forEach {
@@ -138,18 +137,23 @@ private fun UiElement(
                 else -> Arrangement.spacedBy(gap)
             }
             Row(
-                modifier.fillMaxWidth(),
+                (if (inRow) modifier else modifier.fillMaxWidth()),
                 horizontalArrangement = arrangement,
                 verticalAlignment = vAlign
             ) {
                 el.children.forEach { child ->
-                    val flex = (child as? UiNode.El)?.attrs?.containsKey("flex") == true
-                    UiNodeView(
-                        child,
-                        if (flex) Modifier.weight(1f) else Modifier,
-                        inRow = true,
-                        groupValue = groupValue
-                    )
+                    if (child is UiNode.El && child.tag.equals("spacer", true)) {
+                        // <spacer/> 在 row 里是「把后面的内容推到另一头」
+                        Spacer(Modifier.weight(1f))
+                    } else {
+                        val flex = (child as? UiNode.El)?.attrs?.containsKey("flex") == true
+                        UiNodeView(
+                            child,
+                            if (flex) Modifier.weight(1f) else Modifier,
+                            inRow = true,
+                            groupValue = groupValue
+                        )
+                    }
                 }
             }
         }
@@ -162,7 +166,7 @@ private fun UiElement(
             } else {
                 val cols = a["columns"]?.toIntOrNull()?.coerceIn(1, 4) ?: 2
                 val gap = gapOf(a["gap"]) ?: 6.dp
-                Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(gap)) {
+                Column((if (inRow) modifier else modifier.fillMaxWidth()), verticalArrangement = Arrangement.spacedBy(gap)) {
                     el.children.chunked(cols).forEach { line ->
                         Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
                             line.forEach { cell ->
@@ -181,7 +185,7 @@ private fun UiElement(
             lineHeight = sizeOf(a["size"], 18.sp) * 1.3f,
             fontWeight = FontWeight.SemiBold,
             color = colorOf(a["color"]) ?: MaterialTheme.colorScheme.onSurface,
-            modifier = modifier.fillMaxWidth()
+            modifier = if (inRow) modifier else modifier.fillMaxWidth()
         )
 
         "text" -> RichText(
@@ -236,7 +240,7 @@ private fun UiElement(
         "list" -> {
             val numbered = a["marker"] == "number"
             val gap = gapOf(a["gap"]) ?: 8.dp
-            Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(gap)) {
+            Column((if (inRow) modifier else modifier.fillMaxWidth()), verticalArrangement = Arrangement.spacedBy(gap)) {
                 var order = 0
                 el.children.forEach { child ->
                     if (child is UiNode.El && child.tag.equals("list-item", true)) {
@@ -254,12 +258,17 @@ private fun UiElement(
         "radio-group" -> {
             val selected = a["value"] ?: ""
             val gap = gapOf(a["gap"]) ?: 4.dp
-            if (a["direction"] == "col") {
-                Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(gap)) {
-                    el.children.forEach { UiNodeView(it, groupValue = selected) }
+            // 导出包里 39 个 radio-group 有 36 个显式 direction="col"，
+            // 没写的默认也应该竖排；只有明确写了 row 才横排。
+            if (a["direction"] == "row") {
+                Row((if (inRow) modifier else modifier.fillMaxWidth()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    el.children.forEach { UiNodeView(it, inRow = true, groupValue = selected) }
                 }
             } else {
-                Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(
+                    (if (inRow) modifier else modifier.fillMaxWidth()),
+                    verticalArrangement = Arrangement.spacedBy(gap)
+                ) {
                     el.children.forEach { UiNodeView(it, groupValue = selected) }
                 }
             }
@@ -267,24 +276,32 @@ private fun UiElement(
 
         "radio" -> {
             val on = a["value"] != null && a["value"] == groupValue
-            Row(modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                (if (inRow) modifier else modifier.fillMaxWidth()).padding(vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 RadioButton(selected = on, onClick = null)
                 RichText(
                     plain(el),
                     MaterialTheme.typography.bodyMedium,
-                    Modifier.padding(start = 6.dp).weight(1f)
+                    if (inRow) Modifier.padding(start = 6.dp)
+                    else Modifier.padding(start = 6.dp).weight(1f)
                 )
             }
         }
 
         "checkbox" -> {
             val on = a["checked"] == "true"
-            Row(modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                (if (inRow) modifier else modifier.fillMaxWidth()).padding(vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Checkbox(checked = on, onCheckedChange = null)
                 RichText(
                     plain(el),
                     MaterialTheme.typography.bodyMedium,
-                    Modifier.padding(start = 6.dp).weight(1f)
+                    if (inRow) Modifier.padding(start = 6.dp)
+                    else Modifier.padding(start = 6.dp).weight(1f)
                 )
             }
         }
@@ -311,7 +328,7 @@ private fun UiElement(
             val value = a["value"] ?: a["placeholder"] ?: ""
             Box(
                 modifier
-                    .fillMaxWidth()
+                    .then(if (inRow) Modifier else Modifier.fillMaxWidth())
                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f), RoundedCornerShape(8.dp))
                     .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
                     .padding(horizontal = 12.dp, vertical = 10.dp)
@@ -335,7 +352,7 @@ private fun UiElement(
             val percent = a["value"]?.toFloatOrNull()?.coerceIn(0f, 1f) ?: 0.5f
             Box(
                 modifier
-                    .fillMaxWidth()
+                    .then(if (inRow) Modifier else Modifier.fillMaxWidth())
                     .height(22.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
@@ -390,11 +407,11 @@ private fun UiElement(
             val rows = el.children.filterIsInstance<UiNode.El>()
                 .filter { it.tag.equals("table-row", true) || it.tag.equals("tr", true) }
             if (rows.isEmpty()) {
-                Column(modifier.fillMaxWidth()) { el.children.forEach { UiNodeView(it, groupValue = groupValue) } }
+                Column((if (inRow) modifier else modifier.fillMaxWidth())) { el.children.forEach { UiNodeView(it, groupValue = groupValue) } }
             } else {
                 Column(
                     modifier
-                        .fillMaxWidth()
+                        .then(if (inRow) Modifier else Modifier.fillMaxWidth())
                         .background(
                             MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
                             RoundedCornerShape(10.dp)
@@ -417,7 +434,7 @@ private fun UiElement(
             }
         }
 
-        "table-row", "tr" -> Row(modifier.fillMaxWidth()) {
+        "table-row", "tr" -> Row((if (inRow) modifier else modifier.fillMaxWidth())) {
             el.children.forEach { cell -> UiNodeView(cell, Modifier.weight(1f), inRow = true, groupValue = groupValue) }
         }
 
@@ -431,11 +448,15 @@ private fun UiElement(
         "asyncimage" -> ImagePlaceholder(
             query = a["query"],
             ratio = ratioOf(a["aspectRatio"]),
-            modifier = modifier
+            modifier = modifier,
+            // 导出包里 80 张图：46 张 maxWidth（缩略图）、22 张 width="100%"、12 张没写
+            fixedWidth = pxOf(a["width"]) ?: pxOf(a["maxWidth"]) ?: pxOf(a["maxwidth"]),
+            fixedHeight = pxOf(a["height"]),
+            inRow = inRow
         )
 
         "asyncimagegroup", "asyncvideocarousel" -> {
-            Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row((if (inRow) modifier else modifier.fillMaxWidth()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 repeat(3) {
                     ImagePlaceholder(
                         query = a["query"],
@@ -451,13 +472,15 @@ private fun UiElement(
 
         "pressable" -> Column(
             modifier
-                .fillMaxWidth()
+                .then(if (inRow) Modifier else Modifier.fillMaxWidth())
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
                 .padding(10.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             el.children.forEach { UiNodeView(it, groupValue = groupValue) }
         }
+
+        "spacer" -> Spacer(Modifier.height(gapOf(a["size"]) ?: 8.dp))
 
         "entity" -> Text(
             plain(el),
@@ -478,6 +501,63 @@ private fun UiElement(
         )
 
         else -> el.children.forEach { UiNodeView(it, groupValue = groupValue) }
+    }
+}
+
+/** 容器里的文字：含表格/列表时按 Markdown 块渲染，普通文字仍走轻量行内样式 */
+@Composable
+private fun UiTextBody(text: String, modifier: Modifier = Modifier) {
+    val raw = text.trim()
+    if (raw.isBlank()) return
+    val blocks = remember(raw) {
+        val blocky = raw.contains('|') || raw.contains("\n- ") || raw.contains("\n* ") ||
+            raw.contains("\n#") || raw.contains("```")
+        if (blocky) parseMarkdown(raw) else null
+    }
+    if (blocks == null || (blocks.size == 1 && blocks[0] is MdBlock.Paragraph)) {
+        RichText(raw, MaterialTheme.typography.bodyMedium, modifier)
+        return
+    }
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        blocks.forEach { block ->
+            when (block) {
+                is MdBlock.Table -> TableBlock(block.rows, emptyList(), Color.Transparent)
+                is MdBlock.Paragraph -> RichText(block.text, MaterialTheme.typography.bodyMedium)
+                is MdBlock.Heading -> RichText(
+                    block.text,
+                    MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                )
+
+                is MdBlock.Bullets -> Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    block.items.forEachIndexed { idx, item ->
+                        Row(verticalAlignment = Alignment.Top) {
+                            Text(
+                                if (block.ordered) "${idx + 1}." else "·",
+                                Modifier.width(if (block.ordered) 20.dp else 14.dp),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            RichText(item, MaterialTheme.typography.bodyMedium, Modifier.weight(1f))
+                        }
+                    }
+                }
+
+                is MdBlock.Quote -> RichText(
+                    block.text,
+                    MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                is MdBlock.Code -> Text(
+                    block.code,
+                    style = MonoStyle,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                is MdBlock.Divider -> HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                is MdBlock.Ui -> UiTemplateView(block.nodes)
+            }
+        }
     }
 }
 
@@ -510,17 +590,24 @@ private fun ImagePlaceholder(
     query: String?,
     ratio: Float,
     modifier: Modifier = Modifier,
+    fixedWidth: Dp? = null,
+    fixedHeight: Dp? = null,
+    inRow: Boolean = false,
     compact: Boolean = false
 ) {
-    val height = when {
+    // 带 maxWidth/width 的是缩略图，按比例给固定尺寸；否则铺满可用宽度
+    val width = fixedWidth ?: if (inRow) 88.dp else null
+    val height = fixedHeight ?: when {
+        width != null -> (width.value / ratio).coerceIn(36f, 280f).dp
         compact -> 74.dp
         ratio >= 1.5f -> 170.dp
         ratio >= 1.1f -> 190.dp
         else -> 210.dp
     }
+    val tiny = compact || (width != null && width < 120.dp)
     Column(
         modifier
-            .fillMaxWidth()
+            .then(if (width != null) Modifier.width(width) else Modifier.fillMaxWidth())
             .height(height)
             .background(
                 MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
@@ -537,10 +624,10 @@ private fun ImagePlaceholder(
         Icon(
             imageVector = Icons.Outlined.Image,
             contentDescription = query,
-            modifier = Modifier.size(if (compact) 18.dp else 26.dp),
+            modifier = Modifier.size(if (tiny) 18.dp else 26.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        if (!compact) {
+        if (!tiny) {
             Text(
                 stringResource(R.string.md_image),
                 Modifier.padding(top = 6.dp),
