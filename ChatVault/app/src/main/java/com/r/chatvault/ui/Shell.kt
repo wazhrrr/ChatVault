@@ -65,14 +65,17 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -127,6 +130,13 @@ fun MainScreen(
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    // Material3 的 ModalDrawerSheet 在锚点测量完成前 offset 是 NaN，会按 0（打开位置）绘制一帧。
+    // 冷启动被启动图挡住看不见，但切语言 recreate 时会“闪一下左侧抽屉”。头几帧先隐藏抽屉，等锚点就绪再显示。
+    var drawerReady by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        repeat(3) { withFrameNanos { } }
+        drawerReady = true
+    }
     var importMenu by remember { mutableStateOf(false) }
     var reportViewer by remember { mutableStateOf<Attachment?>(null) }
     val chatOpen = state.selectedId != null
@@ -163,7 +173,7 @@ fun MainScreen(
                                 "${Fmt.date(conv.createTs)} · ${state.messages.count { m ->
                                     m.text.isNotBlank() || !m.reasoning.isNullOrBlank() ||
                                         state.attachments[m.id].orEmpty().isNotEmpty()
-                                }} 条 · ${conv.category}",
+                                }} 条 · ${categoryLabel(conv.category)}",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -346,11 +356,12 @@ fun MainScreen(
     } else {
         ModalNavigationDrawer(
             drawerState = drawerState,
-            gesturesEnabled = true,
+            gesturesEnabled = drawerReady,
             drawerContent = {
                 ModalDrawerSheet(
                     drawerContainerColor = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier.width(330.dp)
+                    // 宽度保持不变（改宽度会重算锚点、可能再闪一帧），只让首帧透明
+                    modifier = Modifier.width(330.dp).alpha(if (drawerReady) 1f else 0f)
                 ) {
                     DrawerPanel(
                         vm = vm,

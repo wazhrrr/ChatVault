@@ -6,10 +6,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -40,6 +42,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.r.chatvault.BuildConfig
@@ -223,19 +226,18 @@ fun SettingsScreen(
                             if (state.langTag != tag) {
                                 vm.setLanguage(tag)
                                 // 资源由 attachBaseContext 按 langTag 加载，重建界面即可生效
-                                (context as? Activity)?.recreate()
+                                val activity = context as? Activity
+                                if (activity != null) {
+                                    activity.recreate()
+                                    @Suppress("DEPRECATION")
+                                    activity.overridePendingTransition(0, 0)
+                                }
                             }
                         },
                         label = { Text(label, style = MaterialTheme.typography.labelSmall) }
                     )
                 }
             }
-            Text(
-                stringResource(R.string.settings_language_note),
-                Modifier.padding(top = 6.dp),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
 
         SectionCard(stringResource(R.string.settings_about)) {
@@ -353,6 +355,13 @@ private fun SettingButton(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(icon, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
-        Text(" $label", style = MaterialTheme.typography.labelMedium, fontSize = 13.sp)
+        Spacer(Modifier.width(6.dp))
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            fontSize = 13.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }

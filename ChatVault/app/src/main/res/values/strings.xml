@@ -278,7 +278,7 @@
     <string name="settings_source">Data source</string>
     <string name="settings_source_desc">Import the official ChatGPT export, or Markdown chat logs. Existing chats update incrementally by update_time; nothing is written twice.</string>
     <string name="settings_zip">ZIP</string>
-    <string name="settings_import_md">Import Markdown (multi-select; time comes from the file)</string>
+    <string name="settings_import_md">Import Markdown</string>
     <string name="settings_library">Local library</string>
     <string name="settings_library_stats">%1$d chats · %2$s messages · %3$d attachment files</string>
     <string name="settings_clear">Clear</string>
@@ -297,7 +297,6 @@
     <string name="settings_code_wrap">Wrap code blocks</string>
     <string name="settings_code_wrap_desc">Turn off to scroll code horizontally; long commands stay readable</string>
     <string name="settings_language">Language</string>
-    <string name="settings_language_note">Applies immediately, no restart needed.</string>
     <string name="settings_language_system">System default</string>
     <string name="settings_about">About</string>
     <string name="settings_about_desc">A fully offline browser for your ChatGPT export: reading, full-text search, attachments and stats.\nImports folders, ZIPs and Markdown; keeps edited-away branches; extracts code snippets and text documents; backup and restore included.</string>
@@ -376,4 +375,5 @@
     <string name="month_label_pattern">MMM yyyy</string>
     <string name="common_export_chat">Export chat</string>
     <string name="title_hit_snippet">%1$d messages · %2$s</string>
+    <string name="md_image">Image</string>
 </resources>

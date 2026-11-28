@@ -20,6 +20,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -41,6 +43,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.r.chatvault.data.Palette
 
 sealed interface MdBlock {
     data class Heading(val level: Int, val text: String) : MdBlock
@@ -49,7 +52,48 @@ sealed interface MdBlock {
     data class Bullets(val items: List<String>, val ordered: Boolean) : MdBlock
     data class Quote(val text: String) : MdBlock
     data class Table(val rows: List<List<String>>) : MdBlock
+    /** ChatGPT 富文本里的 <badge color="success">文字</badge> */
+    data class Badge(val text: String, val tone: String?) : MdBlock
+    /** <AsyncImage .../>：导出包里没有图片实体，用占位块表示 */
+    data class Image(val query: String, val ratio: Float) : MdBlock
     data object Divider : MdBlock
+}
+
+// ---------- ChatGPT 消息里的富文本标签 ----------
+// 这些不是 Markdown，是 ChatGPT 客户端的 UI 组件语法，直接显示会像一堆代码。
+private val badgeBlockRe = Regex("""^<badge\b([^>]*)>(.*?)</badge>$""")
+private val imageBlockRe = Regex("""^<AsyncImage\b([^>]*)/?>$""")
+private val linkTagRe = Regex("""<Link\b[^>]*?title="([^"]*)"[^>]*/>""")
+private val entityTagRe = Regex("""<Entity\b[^>]*?value="([^"]*)"[^>]*/>""")
+private val citeTagRe = Regex("""<Cite\b[^>]*/>""")
+private val inlineBadgeRe = Regex("""<badge\b[^>]*>(.*?)</badge>""")
+private val inlineMediaRe = Regex("""<(AsyncImage|Image|Video|Audio|File)\b[^>]*/?>""")
+private val containerTagRe = Regex("""</?(row|box|text|span|div|p)\b[^>]*>""")
+
+/** 把一行里的 UI 标签换成可读文本：Link→链接文字、Entity→名称、其它容器标签直接去掉 */
+internal fun sanitizeInline(src: String): String {
+    var t = src
+    t = linkTagRe.replace(t) { m -> "[${m.groupValues[1]}](ref)" }
+    t = entityTagRe.replace(t) { m -> m.groupValues[1] }
+    t = citeTagRe.replace(t, "")
+    t = inlineMediaRe.replace(t, "")
+    t = inlineBadgeRe.replace(t) { m -> m.groupValues[1] }
+    t = containerTagRe.replace(t, "")
+    return t.trim()
+}
+
+private fun attr(attrs: String, name: String): String? =
+    Regex("""\b$name="([^"]*)"""").find(attrs)?.groupValues?.get(1)
+
+private fun ratioOf(attrs: String): Float {
+    val raw = attr(attrs, "aspectRatio") ?: return 16f / 9f
+    val parts = raw.split(":")
+    val r = if (parts.size == 2) {
+        (parts[0].toFloatOrNull() ?: 16f) / (parts[1].toFloatOrNull() ?: 9f)
+    } else {
+        raw.toFloatOrNull() ?: (16f / 9f)
+    }
+    return r.coerceIn(0.6f, 2.4f)
 }
 
 fun parseMarkdown(src: String): List<MdBlock> {
@@ -76,7 +120,35 @@ fun parseMarkdown(src: String): List<MdBlock> {
     var i = 0
     while (i < lines.size) {
         val line = lines[i]
-        val trimmed = line.trim()
+        val raw = line.trim()
+
+        val badge = badgeBlockRe.find(raw)
+        if (badge != null) {
+            flushParagraph(); flushBullets()
+            out.add(
+                MdBlock.Badge(
+                    text = sanitizeInline(badge.groupValues[2]),
+                    tone = attr(badge.groupValues[1], "color")
+                )
+            )
+            i++
+            continue
+        }
+
+        val image = imageBlockRe.find(raw)
+        if (image != null) {
+            flushParagraph(); flushBullets()
+            out.add(
+                MdBlock.Image(
+                    query = attr(image.groupValues[1], "query") ?: "",
+                    ratio = ratioOf(image.groupValues[1])
+                )
+            )
+            i++
+            continue
+        }
+
+        val trimmed = sanitizeInline(raw)
 
         if (trimmed.startsWith("```")) {
             flushParagraph(); flushBullets()
@@ -117,7 +189,7 @@ fun parseMarkdown(src: String): List<MdBlock> {
             flushParagraph(); flushBullets()
             val sb = StringBuilder()
             while (i < lines.size && lines[i].trim().startsWith(">")) {
-                sb.append(lines[i].trim().removePrefix(">").trim()).append(' ')
+                sb.append(sanitizeInline(lines[i].trim().removePrefix(">").trim())).append(' ')
                 i++
             }
             out.add(MdBlock.Quote(sb.toString().trim()))
@@ -128,7 +200,7 @@ fun parseMarkdown(src: String): List<MdBlock> {
             flushParagraph(); flushBullets()
             val rows = ArrayList<List<String>>()
             while (i < lines.size && isTableLine(lines[i].trim())) {
-                val cells = lines[i].trim().trim('|').split('|').map { it.trim() }
+                val cells = lines[i].trim().trim('|').split('|').map { sanitizeInline(it.trim()) }
                 val isSeparator = cells.isNotEmpty() && cells.all { it.matches(Regex(":?-{2,}:?")) }
                 if (cells.isNotEmpty() && !isSeparator) rows.add(cells)
                 i++
@@ -270,40 +342,45 @@ fun MarkdownView(
     // 只重建选择容器，不重解析 Markdown：外部换 key 即可清掉文字选择
     key(selectionKey) {
     SelectionContainer(modifier = modifier) {
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             blocks.forEach { block ->
                 when (block) {
-                    is MdBlock.Heading -> Text(
-                        text = inlineAnnotated(block.text, codeColor, linkColor, highlight, colors.highlight),
-                        fontSize = when (block.level) {
-                            1 -> 20.sp
-                            2 -> 18.sp
-                            3 -> 16.sp
-                            else -> 15.sp
-                        },
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(top = 6.dp),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    is MdBlock.Heading -> {
+                        val size = when (block.level) {
+                            1 -> 22.sp
+                            2 -> 19.sp
+                            3 -> 17.sp
+                            else -> 16.sp
+                        }
+                        Text(
+                            text = inlineAnnotated(block.text, codeColor, linkColor, highlight, colors.highlight),
+                            fontSize = size,
+                            lineHeight = size * 1.35f,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(top = if (block.level <= 2) 10.dp else 8.dp),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
 
                     is MdBlock.Paragraph -> Text(
                         text = inlineAnnotated(block.text, codeColor, linkColor, highlight, colors.highlight),
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 24.sp),
                         color = MaterialTheme.colorScheme.onSurface
                     )
 
                     is MdBlock.Bullets -> Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         block.items.forEachIndexed { idx, item ->
-                            Row {
+                            Row(verticalAlignment = Alignment.Top) {
                                 Text(
                                     if (block.ordered) "${idx + 1}. " else "· ",
-                                    style = MaterialTheme.typography.bodyLarge,
+                                    style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 24.sp),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
                                     inlineAnnotated(item, codeColor, linkColor, highlight, colors.highlight),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 24.sp),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.weight(1f)
                                 )
                             }
                         }
@@ -319,9 +396,67 @@ fun MarkdownView(
                         ) {}
                         Text(
                             inlineAnnotated(block.text, codeColor, linkColor, highlight, colors.highlight),
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 22.sp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+
+                    is MdBlock.Badge -> {
+                        val tone = when (block.tone) {
+                            "success" -> Palette.teal
+                            "warning" -> Palette.amber
+                            "danger", "error" -> Palette.coral
+                            "info" -> Palette.blue
+                            else -> MaterialTheme.colorScheme.primary
+                        }
+                        Box(
+                            Modifier
+                                .background(tone.copy(alpha = 0.16f), RoundedCornerShape(50))
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                block.text,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = tone
+                            )
+                        }
+                    }
+
+                    is MdBlock.Image -> {
+                        val height = when {
+                            block.ratio >= 1.5f -> 170.dp
+                            block.ratio >= 1.1f -> 190.dp
+                            else -> 210.dp
+                        }
+                        Column(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(height)
+                                .background(
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                                    RoundedCornerShape(10.dp)
+                                )
+                                .border(
+                                    0.5.dp,
+                                    MaterialTheme.colorScheme.outlineVariant,
+                                    RoundedCornerShape(10.dp)
+                                ),
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Image,
+                                contentDescription = block.query.ifBlank { null },
+                                modifier = Modifier.size(26.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                stringResource(R.string.md_image),
+                                Modifier.padding(top = 6.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
 
                     is MdBlock.Code -> CodeBlock(block.lang, block.code, wrapCode, highlight, colors.highlight)
@@ -382,7 +517,7 @@ private fun CodeBlock(
             Modifier
                 .fillMaxWidth()
                 .then(if (wrap) Modifier else Modifier.horizontalScroll(rememberScrollState()))
-                .padding(start = 12.dp, end = 12.dp, bottom = 10.dp)
+                .padding(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 10.dp)
         ) {
             Text(
                 highlightAll(code, highlight, highlightColor),
@@ -433,23 +568,28 @@ private fun TableBlock(
         Column(
             Modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
-                .padding(8.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+                .background(
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                    RoundedCornerShape(10.dp)
+                )
+                .padding(horizontal = 12.dp, vertical = 2.dp)
         ) {
             rows.forEachIndexed { rIdx, row ->
-                Row(Modifier.fillMaxWidth()) {
+                Row(Modifier.fillMaxWidth().padding(vertical = 9.dp)) {
                     for (c in 0 until cols) {
                         TableCell(
                             row.getOrElse(c) { "" },
                             header = rIdx == 0,
-                            modifier = Modifier.weight(1f).padding(end = 6.dp),
+                            modifier = Modifier.weight(1f).padding(end = 8.dp),
                             codeColor = codeColor,
                             linkColor = linkColor,
                             highlight = highlight,
                             highlightColor = highlightColor
                         )
                     }
+                }
+                if (rIdx < rows.lastIndex) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
             }
         }

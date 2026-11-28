@@ -275,7 +275,7 @@
     <string name="settings_source">数据源</string>
     <string name="settings_source_desc">导入 ChatGPT 官方导出包，或直接导入 Markdown 聊天记录。已导入的会话按 update_time 增量更新，不会重复写入。</string>
     <string name="settings_zip">ZIP 包</string>
-    <string name="settings_import_md">导入 Markdown（可多选，时间取文件修改时间）</string>
+    <string name="settings_import_md">导入 Markdown</string>
     <string name="settings_library">本地库</string>
     <string name="settings_library_stats">%1$d 个会话 · %2$s 条消息 · %3$d 个附件实体</string>
     <string name="settings_clear">清空</string>
@@ -294,7 +294,6 @@
     <string name="settings_code_wrap">代码块自动换行</string>
     <string name="settings_code_wrap_desc">关闭后代码块左右滑动查看，长命令更易读</string>
     <string name="settings_language">语言</string>
-    <string name="settings_language_note">切换后立即生效，不需要重启。</string>
     <string name="settings_language_system">跟随系统</string>
     <string name="settings_about">关于</string>
     <string name="settings_about_desc">一个完全离线的 ChatGPT 导出浏览器：会话阅读、全文搜索、附件查看、统计图表。\n支持文件夹、ZIP 与 Markdown 三种导入方式；保留被编辑废弃的分支；自动抽取代码片段和文本文档索引；可备份、可恢复。</string>
@@ -373,4 +372,5 @@
     <string name="month_label_pattern">yyyy年M月</string>
     <string name="common_export_chat">导出会话</string>
     <string name="title_hit_snippet">%1$d 条消息 · %2$s</string>
+    <string name="md_image">图片</string>
 </resources>

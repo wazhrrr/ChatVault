@@ -293,7 +293,7 @@ fun ChatScreen(
             contentPadding = androidx.compose.foundation.layout.PaddingValues(
                 start = 14.dp, end = 14.dp, top = 8.dp, bottom = 28.dp
             ),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             itemsIndexed(displayed, key = { _, m -> m.id }) { _, m ->
                 val atts = state.attachments[m.id].orEmpty()
