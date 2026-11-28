@@ -36,8 +36,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.r.chatvault.R
 import com.r.chatvault.data.Fmt
 import com.r.chatvault.data.MonthlyStat
 import com.r.chatvault.data.Palette
@@ -47,12 +49,17 @@ import com.r.chatvault.vm.UiState
 import java.time.YearMonth
 import kotlin.math.roundToInt
 
-private enum class Metric(val label: String) {
-    CONVS("会话数"), MESSAGES("消息数"), CHARS("字数(千)")
+private enum class Metric(val labelRes: Int) {
+    CONVS(R.string.stats_conversations),
+    MESSAGES(R.string.stats_messages),
+    CHARS(R.string.stats_chars_k)
 }
 
-private enum class StatsTab(val label: String) {
-    TREND("趋势"), TOPIC("主题"), HOUR("时段"), MODEL("模型")
+private enum class StatsTab(val labelRes: Int) {
+    TREND(R.string.stats_tab_trend),
+    TOPIC(R.string.stats_tab_topic),
+    HOUR(R.string.stats_tab_hour),
+    MODEL(R.string.stats_tab_model)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -73,24 +80,24 @@ fun StatsScreen(vm: AppViewModel, state: UiState) {
             Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 12.dp).height(48.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("数据总览", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+            Text(stringResource(R.string.stats_overview), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
             IconButton(onClick = { filterOpen = true }) {
                 Icon(
                     Icons.Outlined.FilterList,
-                    "筛选",
+                    stringResource(R.string.stats_filter),
                     tint = if (state.filterCount > 0) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             if (tab == StatsTab.TREND || tab == StatsTab.HOUR) {
                 IconButton(onClick = { configOpen = true }) {
-                    Icon(Icons.Outlined.Tune, "图表设置", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(Icons.Outlined.Tune, stringResource(R.string.chart_settings), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
 
         if (stats == null) {
-            Text("正在统计…", Modifier.padding(16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.stats_loading), Modifier.padding(16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
             return@Column
         }
 
@@ -98,15 +105,15 @@ fun StatsScreen(vm: AppViewModel, state: UiState) {
             Modifier.fillMaxWidth().padding(horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            StatCard("会话", Fmt.compact(stats.totalConvs), Modifier.weight(1f))
-            StatCard("消息", Fmt.compact(stats.totalMsgs), Modifier.weight(1f))
-            StatCard("字数", Fmt.compact(stats.totalChars), Modifier.weight(1f))
-            StatCard("附件", Fmt.compact(stats.totalAttachments), Modifier.weight(1f))
+            StatCard(stringResource(R.string.stats_convs), Fmt.compact(stats.totalConvs), Modifier.weight(1f))
+            StatCard(stringResource(R.string.stats_msgs), Fmt.compact(stats.totalMsgs), Modifier.weight(1f))
+            StatCard(stringResource(R.string.stats_chars), Fmt.compact(stats.totalChars), Modifier.weight(1f))
+            StatCard(stringResource(R.string.stats_atts), Fmt.compact(stats.totalAttachments), Modifier.weight(1f))
         }
 
         if (stats.missingAttachments > 0) {
             Text(
-                "${stats.missingAttachments} 个附件只有记录、没有实体文件（导出包未包含）",
+                stringResource(R.string.stats_missing_note, stats.missingAttachments),
                 Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.error
@@ -118,7 +125,7 @@ fun StatsScreen(vm: AppViewModel, state: UiState) {
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             StatsTab.entries.forEach { t ->
-                FilterChip(selected = tab == t, onClick = { tab = t }, label = { Text(t.label, style = MaterialTheme.typography.labelSmall) })
+                FilterChip(selected = tab == t, onClick = { tab = t }, label = { Text(stringResource(t.labelRes), style = MaterialTheme.typography.labelSmall) })
             }
         }
 
@@ -130,7 +137,7 @@ fun StatsScreen(vm: AppViewModel, state: UiState) {
                 FilterChip(
                     selected = state.year == null,
                     onClick = { vm.setYear(null) },
-                    label = { Text("全部年份", style = MaterialTheme.typography.labelSmall) }
+                    label = { Text(stringResource(R.string.stats_all_years), style = MaterialTheme.typography.labelSmall) }
                 )
                 stats.years.take(5).forEach { y ->
                     FilterChip(
@@ -146,14 +153,14 @@ fun StatsScreen(vm: AppViewModel, state: UiState) {
             StatsTab.TREND -> {
                 val months = fillMonths(stats.monthly)
                 if (months.isEmpty()) {
-                    EmptyHint("没有可统计的数据")
+                    EmptyHint(stringResource(R.string.stats_empty))
                 } else {
                     Row(
                         Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Metric.entries.forEach { m ->
-                            FilterChip(selected = metric == m, onClick = { metric = m }, label = { Text(m.label, style = MaterialTheme.typography.labelSmall) })
+                            FilterChip(selected = metric == m, onClick = { metric = m }, label = { Text(stringResource(m.labelRes), style = MaterialTheme.typography.labelSmall) })
                         }
                     }
                     val values = when (metric) {
@@ -166,7 +173,7 @@ fun StatsScreen(vm: AppViewModel, state: UiState) {
                         labels = months.map { Fmt.monthShort(it.key) },
                         series = listOf(
                             Series(
-                                metric.label,
+                                stringResource(metric.labelRes),
                                 values,
                                 if (metric == Metric.MESSAGES) Palette.teal else Palette.blue,
                                 asLine = config.lineMode
@@ -180,21 +187,36 @@ fun StatsScreen(vm: AppViewModel, state: UiState) {
                     Column(Modifier.padding(horizontal = 8.dp)) {
                         CartesianChart(spec, effective, height = 240)
                         Legend(spec.series)
-                        TapHint("点柱子看当月明细 · 右上角可调 ${maxRaw.roundToInt()} 上限与 X 轴区间")
+                        TapHint(stringResource(R.string.stats_trend_hint, maxRaw.roundToInt()))
                     }
                     MonSummary(months)
                 }
             }
 
             StatsTab.TOPIC -> {
-                SectionTitle("会话主题分布", "按标题关键词自动归类，共 ${stats.totalConvs} 个会话")
-                HorizontalBars(stats.categories, Palette.blue, Modifier.padding(16.dp), valueSuffix = " 个")
+                SectionTitle(
+                    stringResource(R.string.stats_topic_title),
+                    stringResource(R.string.stats_topic_sub, stats.totalConvs)
+                )
+                HorizontalBars(
+                    stats.categories.map { it.copy(name = categoryLabel(it.name)) },
+                    Palette.blue,
+                    Modifier.padding(16.dp),
+                    valueSuffix = stringResource(R.string.count_suffix_items)
+                )
             }
 
             StatsTab.HOUR -> {
                 val spec = ChartSpec(
                     labels = (0..23).map { "$it" },
-                    series = listOf(Series("消息", stats.hours.map { it.count.toFloat() }, Palette.amber, asLine = config.lineMode))
+                    series = listOf(
+                        Series(
+                            stringResource(R.string.stats_msgs),
+                            stats.hours.map { it.count.toFloat() },
+                            Palette.amber,
+                            asLine = config.lineMode
+                        )
+                    )
                 )
                 val effective = config.copy(
                     yMax = if (yManual) yMaxValue else null,
@@ -202,20 +224,28 @@ fun StatsScreen(vm: AppViewModel, state: UiState) {
                 )
                 Column(Modifier.padding(horizontal = 8.dp)) {
                     Text(
-                        "消息在一天内的分布（本地时间）",
+                        stringResource(R.string.stats_hour_title),
                         Modifier.padding(start = 8.dp, top = 4.dp),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     CartesianChart(spec, effective, height = 230)
                     Legend(spec.series)
-                    TapHint("横轴为 0–23 时 · 点任意柱子查看该小时消息量")
+                    TapHint(stringResource(R.string.stats_hour_sub))
                 }
             }
 
             StatsTab.MODEL -> {
-                SectionTitle("回复模型分布", "仅统计带模型标记的助手回复")
-                HorizontalBars(stats.models, Palette.teal, Modifier.padding(16.dp), valueSuffix = " 条")
+                SectionTitle(
+                    stringResource(R.string.stats_model_title),
+                    stringResource(R.string.stats_model_sub)
+                )
+                HorizontalBars(
+                    stats.models.map { it.copy(name = modelLabel(it.name)) },
+                    Palette.teal,
+                    Modifier.padding(16.dp),
+                    valueSuffix = stringResource(R.string.count_suffix_msgs)
+                )
             }
         }
 
@@ -257,7 +287,7 @@ fun StatsScreen(vm: AppViewModel, state: UiState) {
 }
 
 private val stepOptions = listOf<Float?>(null, 1f, 2f, 5f, 10f, 20f, 50f, 100f)
-private val stepLabels = listOf("自动", "1", "2", "5", "10", "20", "50", "100")
+private val stepLabels = listOf("", "1", "2", "5", "10", "20", "50", "100")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -273,27 +303,41 @@ private fun ChartConfigPanel(
     maxIndex: Int
 ) {
     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Text("图表设置", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.chart_settings), style = MaterialTheme.typography.titleMedium)
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("手动指定 Y 轴上限", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.stats_y_max), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
             Switch(checked = yManual, onCheckedChange = onYManual)
         }
         if (yManual) {
-            Text("上限 ${yMax.roundToInt()}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.stats_y_max_label, yMax.roundToInt()), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Slider(value = yMax, onValueChange = onYMax, valueRange = 5f..600f)
         }
 
-        Text("Y 轴刻度步长", style = MaterialTheme.typography.labelMedium)
+        Text(stringResource(R.string.stats_y_step), style = MaterialTheme.typography.labelMedium)
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             stepLabels.forEachIndexed { i, label ->
-                FilterChip(selected = stepIndex == i, onClick = { onStepIndex(i) }, label = { Text(label, style = MaterialTheme.typography.labelSmall) })
+                FilterChip(
+                    selected = stepIndex == i,
+                    onClick = { onStepIndex(i) },
+                    label = {
+                        Text(
+                            if (label.isBlank()) stringResource(R.string.stats_auto) else label,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                )
             }
         }
 
         if (maxIndex > 1) {
             Text(
-                "X 轴区间 ${config.xFrom + 1} – ${if (config.xTo < 0) maxIndex + 1 else config.xTo + 1}（共 ${maxIndex + 1} 项）",
+                stringResource(
+                    R.string.stats_x_range,
+                    config.xFrom + 1,
+                    if (config.xTo < 0) maxIndex + 1 else config.xTo + 1,
+                    maxIndex + 1
+                ),
                 style = MaterialTheme.typography.labelMedium
             )
             RangeSlider(
@@ -306,22 +350,22 @@ private fun ChartConfigPanel(
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("显示网格线", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.stats_grid), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
             Switch(checked = config.showGrid, onCheckedChange = { onChange(config.copy(showGrid = it)) })
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("显示数值标签", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.stats_labels), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
             Switch(checked = config.showValues, onCheckedChange = { onChange(config.copy(showValues = it)) })
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("折线模式", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.stats_line), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
             Switch(checked = config.lineMode, onCheckedChange = { onChange(config.copy(lineMode = it)) })
         }
         TextButton(onClick = {
             onChange(AxisConfig())
             onYManual(false)
             onStepIndex(0)
-        }) { Text("恢复默认") }
+        }) { Text(stringResource(R.string.stats_restore)) }
         Column(Modifier.height(12.dp)) {}
     }
 }
@@ -360,7 +404,7 @@ private fun MonSummary(months: List<MonthlyStat>) {
     val total = months.sumOf { it.convs }
     if (top != null && total > 0) {
         Text(
-            "共 ${months.size} 个月 · 最忙是 ${top.key}（${top.convs} 个会话、${top.msgs} 条消息）",
+            stringResource(R.string.stats_month_summary, months.size, top.key, top.convs, top.msgs),
             Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant

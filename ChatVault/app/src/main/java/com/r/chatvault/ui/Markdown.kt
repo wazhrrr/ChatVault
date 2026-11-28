@@ -1,5 +1,6 @@
 package com.r.chatvault.ui
 
+import com.r.chatvault.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
@@ -30,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -369,11 +371,11 @@ private fun CodeBlock(
             TextButton(onClick = { clipboard.setText(AnnotatedString(code)) }) {
                 Icon(
                     Icons.Outlined.ContentCopy,
-                    contentDescription = "复制",
+                    contentDescription = stringResource(R.string.common_copy),
                     modifier = Modifier.size(13.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Text(" 复制", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(" " + stringResource(R.string.common_copy), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         Box(

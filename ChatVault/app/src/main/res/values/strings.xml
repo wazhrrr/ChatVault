@@ -1,3 +1,379 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  默认语言：英文。未支持的系统语言会回退到这里。
+  新增语言时复制本文件到 values-<语言>/strings.xml 并翻译，不要改动键名。
+-->
 <resources>
     <string name="app_name">ChatVault</string>
+
+    <!-- ========== 通用 ========== -->
+    <string name="common_ok">OK</string>
+    <string name="common_cancel">Cancel</string>
+    <string name="common_delete">Delete</string>
+    <string name="common_save">Save</string>
+    <string name="common_close">Close</string>
+    <string name="common_all">All</string>
+    <string name="common_more">More</string>
+    <string name="common_reset">Reset</string>
+    <string name="common_apply">Apply</string>
+    <string name="common_copy">Copy</string>
+    <string name="common_revert">Revert</string>
+    <string name="common_none">None</string>
+    <string name="common_any">Any</string>
+    <string name="common_me">Me</string>
+    <string name="common_role">Role</string>
+    <string name="common_time">Time</string>
+    <string name="common_type">Type</string>
+    <string name="common_model">Model</string>
+    <string name="common_chars">Characters</string>
+    <string name="common_title">Title</string>
+    <string name="common_alias">Alias</string>
+    <string name="common_note">Note</string>
+    <string name="common_tags">Tags</string>
+    <string name="common_topic">Topic</string>
+    <string name="common_year">Year</string>
+    <string name="common_messages">Messages</string>
+    <string name="common_attachments">Attachments</string>
+    <string name="common_code">Code</string>
+    <string name="common_clips">Clips</string>
+    <string name="common_not_recorded">Not recorded</string>
+    <string name="common_starred">Starred</string>
+    <string name="common_unstar">Unstar</string>
+    <string name="common_import">Import</string>
+    <string name="common_tip">Tip</string>
+    <string name="common_branches">Branches</string>
+
+    <!-- ========== 导航 ========== -->
+    <string name="nav_chats">Chats</string>
+    <string name="nav_search">Full-text search</string>
+    <string name="nav_clips">Clips &amp; bookmarks</string>
+    <string name="nav_code">Code snippets</string>
+    <string name="nav_stats">Stats</string>
+    <string name="nav_files">Files</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- ========== 抽屉 / 会话列表 ========== -->
+    <string name="drawer_open">Open drawer</string>
+    <string name="drawer_stats">%1$d chats · %2$s messages</string>
+    <string name="conversation_list">Conversation list</string>
+    <string name="filter_button">Filter</string>
+    <string name="filter_button_count">Filter %1$d</string>
+    <string name="all_tags">All tags</string>
+    <string name="loading">Loading…</string>
+    <string name="no_data_hint">No data yet\nUse the buttons above to import an export</string>
+    <string name="folder">Folder</string>
+    <string name="recent_chats">Recent chats</string>
+    <string name="more_in_drawer">More chats, filters and sorting live in the left drawer.</string>
+
+    <string name="sort_newest">Newest first</string>
+    <string name="sort_oldest">Oldest first</string>
+    <string name="sort_messages">Most messages</string>
+    <string name="sort_chars">Most characters</string>
+    <string name="sort_title">Title A-Z</string>
+
+    <string name="import_folder">Import folder</string>
+    <string name="import_zip">Import ZIP</string>
+    <string name="import_md">Import Markdown</string>
+
+    <string name="delete_chat">Delete chat</string>
+    <string name="delete_chat_title">Delete this chat?</string>
+    <string name="delete_chat_title_named">Delete “%1$s”?</string>
+    <string name="delete_chat_body">This also removes its messages, attachment files, clips, code snippets and tag links, and cannot be undone. Your original export is untouched.</string>
+    <string name="delete_chat_body_short">This also removes its messages, attachment files, clips, code snippets and tag links, and cannot be undone.</string>
+
+    <string name="edit_name_tags">Edit name &amp; tags</string>
+    <string name="export_md">Export as Markdown</string>
+    <string name="export_md_ready">Markdown generated — choose an app to share it</string>
+    <string name="export_failed">Export failed</string>
+    <string name="chat_details">Chat details</string>
+    <string name="menu_show_all">Show all messages</string>
+    <string name="menu_only_user">Only my questions</string>
+
+    <string name="name_tags">Name &amp; tags</string>
+    <string name="alias_hint">Alias (blank keeps the original title)</string>
+    <string name="existing_tags">Existing tags (tap to add)</string>
+    <string name="new_tag">New tag</string>
+    <string name="add_tag">Add tag</string>
+    <string name="tag_hint">Tags show in the chat list and can be filtered in the drawer; they survive re-imports.</string>
+    <string name="original_title">Original title: %1$s</string>
+
+    <string name="no_data">No data imported yet</string>
+    <string name="empty_import_hint">Tap Import at the top right and pick the folder or .zip of your ChatGPT export,\nor choose a Markdown chat log.</string>
+    <string name="empty_import_sub">Once imported you can browse every chat offline, search text and code, view attachments and charts.</string>
+
+    <string name="row_meta">%1$s · %2$d messages</string>
+    <string name="row_attachments">%1$d attachments</string>
+    <string name="row_meta_cat">%1$s · %2$d messages · %3$s</string>
+    <string name="row_chars">%1$s chars</string>
+
+    <string name="count_messages">%1$d</string>
+    <string name="showing_now">Showing %1$d</string>
+
+    <!-- ========== 聊天页 ========== -->
+    <string name="chat_search_hint">Search in this chat</string>
+    <string name="chat_prev">Previous</string>
+    <string name="chat_next">Next</string>
+    <string name="msg_actions">Message actions</string>
+    <string name="reasoning">Reasoning</string>
+    <string name="copied_message">Message copied</string>
+    <string name="share_message">Share message</string>
+    <string name="my_message">My message</string>
+    <string name="gpt_reply">ChatGPT reply</string>
+    <string name="copy_all">Copy all</string>
+    <string name="share_text">Share as text</string>
+    <string name="save_clip_ellipsis">Save as clip…</string>
+    <string name="add_bookmark">Add bookmark</string>
+    <string name="msg_details">Message details</string>
+    <string name="save_clip">Save as clip</string>
+    <string name="body">Body</string>
+    <string name="note_optional">Note (optional)</string>
+    <string name="tags_comma">Tags (comma separated)</string>
+
+    <string name="branch_count">%1$d branches</string>
+    <string name="chars_count">%1$d chars</string>
+    <string name="time_with_chars">%1$s · %2$d chars</string>
+    <string name="other_branches">View other branches (%1$d)</string>
+    <string name="me_prefix">"Me · "</string>
+    <string name="branches_after">%1$d later branches</string>
+
+    <string name="branches_title">Branches after this message</string>
+    <string name="branches_hint">Answers edited away in the export are kept too. Pick one to view it read-only.</string>
+    <string name="no_text">(no text)</string>
+    <string name="current">Current</string>
+    <string name="another_branch">Another branch</string>
+    <string name="no_branch_content">No branch content to show</string>
+    <string name="readonly_preview">Read-only · %1$d messages</string>
+    <string name="old_data_hint">Imported by an older version; re-import the export to see branches</string>
+    <string name="default_model">Default model</string>
+    <string name="detail_attachments">%1$d (%2$d on disk)</string>
+    <string name="created">Created</string>
+    <string name="updated">Updated</string>
+    <string name="msg_count">Messages</string>
+    <string name="text_size">Text volume</string>
+    <string name="chat_id">Chat ID</string>
+    <string name="message_id">Message ID</string>
+
+    <!-- ========== 全文搜索 ========== -->
+    <string name="search_hint">Search messages, reasoning, code, clips, attachment text</string>
+    <string name="search_try">Try these keywords</string>
+    <string name="search_scope">Search covers message text, reasoning, code snippets, clips and text documents.</string>
+    <string name="searching">Searching…</string>
+    <string name="search_empty">No matches</string>
+    <string name="match_count">%1$d matches</string>
+    <string name="code_with_lang">Code %1$s</string>
+
+    <!-- ========== 摘录 ========== -->
+    <string name="clip_search_hint">Search clip text, notes, tags</string>
+    <string name="clip_delete_title">Delete this clip?</string>
+    <string name="clip_delete_body">Only the clip is removed; the original chat is untouched.</string>
+    <string name="no_chat_linked">No chat linked</string>
+    <string name="edit_note_tags">Edit note &amp; tags</string>
+    <string name="revert_last">Revert last change</string>
+    <string name="clip_empty">No clips yet.\nOpen a message’s ⋮ menu and choose Save as clip.</string>
+    <string name="clip_count">%1$d clips</string>
+    <string name="clip_showing">(showing %1$d/%2$d)</string>
+
+    <!-- ========== 代码片段 ========== -->
+    <string name="code_search_hint">Search code or language</string>
+    <string name="code_count">%1$d snippets · %2$d chats</string>
+    <string name="collapse_all">Collapse all</string>
+    <string name="expand_all">Expand all</string>
+    <string name="code_empty">No snippets yet.\nThey are extracted automatically when you import chats that contain code.</string>
+    <string name="code_copied">Copied %1$s code</string>
+    <string name="code_group_meta">%1$d chats · %2$d snippets</string>
+    <string name="code_item_meta">%1$d snippets · %2$s</string>
+    <string name="open_chat">Open chat</string>
+    <string name="unnamed_chat">Untitled chat</string>
+    <string name="unnamed_note">Untitled note</string>
+
+    <!-- ========== 附件与文件 ========== -->
+    <string name="file_missing">File missing</string>
+    <string name="files_orphan_suffix">" · unreferenced"</string>
+    <string name="files_missing_suffix">" · file missing"</string>
+    <string name="open_other_app">Open with another app</string>
+    <string name="no_preview">This file type has no inline preview</string>
+    <string name="open_with_hint">Tap ↗ at the top right to open it with another app</string>
+    <string name="no_entity">This attachment has no file in the export</string>
+    <string name="record_name">Recorded as: %1$s (%2$s)</string>
+    <string name="image_decode_failed">Could not decode image</string>
+    <string name="zip_entries">%1$d files in the archive (first 400 shown)</string>
+    <string name="file_too_large">… (large file: showing the first 150,000 characters of %1$s)</string>
+    <string name="cannot_read">Cannot read: %1$s</string>
+
+    <string name="files_all">All %1$d</string>
+    <string name="files_missing">Missing %1$d</string>
+    <string name="files_images">Images %1$d</string>
+    <string name="files_docs">Docs %1$d</string>
+    <string name="files_orphans">Unreferenced %1$d</string>
+    <string name="files_search_hint">Filter by filename</string>
+    <string name="files_count">%1$d files</string>
+    <string name="files_missing_note">" · %1$d missing on disk"</string>
+    <string name="files_image_note">" · tap an image to zoom"</string>
+    <string name="files_empty">No files</string>
+
+    <!-- ========== 统计 ========== -->
+    <string name="stats_tab_trend">Trend</string>
+    <string name="stats_tab_topic">Topics</string>
+    <string name="stats_tab_hour">Hours</string>
+    <string name="stats_tab_model">Models</string>
+    <string name="stats_conversations">Chats</string>
+    <string name="stats_messages">Messages</string>
+    <string name="stats_chars_k">Chars (k)</string>
+    <string name="stats_overview">Overview</string>
+    <string name="stats_filter">Filter</string>
+    <string name="chart_settings">Chart settings</string>
+    <string name="stats_loading">Crunching numbers…</string>
+    <string name="stats_convs">Chats</string>
+    <string name="stats_msgs">Messages</string>
+    <string name="stats_chars">Characters</string>
+    <string name="stats_atts">Attachments</string>
+    <string name="stats_missing_note">%1$d attachments are records only — the export contains no file</string>
+    <string name="stats_all_years">All years</string>
+    <string name="stats_empty">No data to chart</string>
+    <string name="stats_trend_hint">Tap a bar for that month · adjust the max (%1$d) and X range at the top right</string>
+    <string name="stats_topic_title">Topics</string>
+    <string name="stats_topic_sub">Grouped by title keywords · %1$d chats</string>
+    <string name="stats_hour_title">Messages by hour (local time)</string>
+    <string name="stats_hour_sub">Hours 0–23 · tap a bar for that hour’s volume</string>
+    <string name="stats_model_title">Reply models</string>
+    <string name="stats_model_sub">Assistant replies that carry a model tag only</string>
+    <string name="stats_auto">Auto</string>
+    <string name="stats_y_max">Set Y max manually</string>
+    <string name="stats_y_max_label">Max %1$d</string>
+    <string name="stats_y_step">Y axis step</string>
+    <string name="stats_x_range">X range %1$d – %2$d (%3$d items)</string>
+    <string name="stats_grid">Grid lines</string>
+    <string name="stats_labels">Value labels</string>
+    <string name="stats_line">Line mode</string>
+    <string name="stats_restore">Restore defaults</string>
+    <string name="stats_month_summary">%1$d months · busiest is %2$s (%3$d chats, %4$d messages)</string>
+    <string name="count_suffix_items">" "</string>
+    <string name="count_suffix_msgs">" "</string>
+
+    <!-- ========== 筛选 ========== -->
+    <string name="filter_title">Filter &amp; sort</string>
+    <string name="filter_hint">Stats shares these filters; the list and charts update together.</string>
+    <string name="filter_sort">Sort</string>
+    <string name="filter_created">Created</string>
+    <string name="filter_from">" From: %1$s"</string>
+    <string name="filter_to">" To: %1$s"</string>
+    <string name="filter_clear_dates">" Clear dates"</string>
+
+    <!-- ========== 导入报告 ========== -->
+    <string name="import_done">Import finished</string>
+    <string name="report_added">Added</string>
+    <string name="report_updated">Updated</string>
+    <string name="report_skipped">Skipped</string>
+    <string name="report_messages">Messages</string>
+    <string name="report_atts">%1$d attachment files</string>
+    <string name="report_md">" · %1$d Markdown"</string>
+    <string name="report_orphans">" · %1$d unreferenced"</string>
+    <string name="report_missing_title">Missing attachments: %1$d</string>
+    <string name="report_missing_sub">Records exist but the export has no file. Tap one to jump to its message.</string>
+    <string name="report_orphan_title">Unreferenced files: %1$d</string>
+    <string name="report_orphan_sub">Files on disk that no chat references. Tap one to view it.</string>
+    <string name="report_none">No missing attachments and no unreferenced files.</string>
+
+    <!-- ========== 设置 ========== -->
+    <string name="settings_source">Data source</string>
+    <string name="settings_source_desc">Import the official ChatGPT export, or Markdown chat logs. Existing chats update incrementally by update_time; nothing is written twice.</string>
+    <string name="settings_zip">ZIP</string>
+    <string name="settings_import_md">Import Markdown (multi-select; time comes from the file)</string>
+    <string name="settings_library">Local library</string>
+    <string name="settings_library_stats">%1$d chats · %2$s messages · %3$d attachment files</string>
+    <string name="settings_clear">Clear</string>
+    <string name="settings_local_note">Everything stays on this device (SQLite + private folder). No network, no uploads.\nSince 1.2.0, edited-away branches are kept; re-import the export once to backfill older data (stars, tags and clips are preserved).</string>
+    <string name="settings_backup">Backup &amp; restore</string>
+    <string name="settings_backup_desc">Packs the database and restored attachments into one zip. Back up before switching devices, reinstalling or upgrading.</string>
+    <string name="settings_backup_to">Back up to file</string>
+    <string name="settings_restore_from">Restore from backup</string>
+    <string name="settings_backup_note">A snapshot is kept in the app folder before DB upgrades; a failed restore rolls back automatically.</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_system">System</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_font">Text size</string>
+    <string name="settings_code_wrap">Wrap code blocks</string>
+    <string name="settings_code_wrap_desc">Turn off to scroll code horizontally; long commands stay readable</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_language_note">Applies immediately, no restart needed.</string>
+    <string name="settings_language_system">System default</string>
+    <string name="settings_about">About</string>
+    <string name="settings_about_desc">A fully offline browser for your ChatGPT export: reading, full-text search, attachments and stats.\nImports folders, ZIPs and Markdown; keeps edited-away branches; extracts code snippets and text documents; backup and restore included.</string>
+    <string name="settings_clear_title">Clear local data?</string>
+    <string name="settings_clear_body">This removes all chats, the message index, clips, code snippets, restored attachment files and local DB snapshots. Your original export is untouched.</string>
+    <string name="settings_clear_confirm">Clear everything</string>
+    <string name="settings_restore_title">Restore from backup?</string>
+    <string name="settings_restore_body">Restoring overwrites all chats, clips, tags and attachments.\nA failure rolls back automatically, but backing up first is safer.</string>
+    <string name="settings_pick_backup">Choose backup file</string>
+    <string name="github_repo">GitHub repository</string>
+
+    <!-- ========== 进度与提示 ========== -->
+    <string name="progress_importing">Importing</string>
+    <string name="progress_backing_up">Backing up</string>
+    <string name="progress_restoring">Restoring</string>
+    <string name="progress_preparing">Preparing</string>
+    <string name="progress_keep_foreground">Keep the app in the foreground; don’t lock the screen or switch away.</string>
+
+    <string name="toast_chat_deleted">Chat deleted</string>
+    <string name="toast_saved_clip">Saved to clips</string>
+    <string name="toast_bookmarked">Bookmarked</string>
+    <string name="toast_note_updated">Note and tags updated</string>
+    <string name="toast_reverted">Reverted the last change</string>
+    <string name="toast_clip_deleted">Clip deleted</string>
+    <string name="toast_prepare_import">Preparing import</string>
+    <string name="toast_prepare_md">Preparing Markdown import</string>
+    <string name="toast_prepare_backup">Preparing backup</string>
+    <string name="toast_prepare_restore">Preparing restore</string>
+    <string name="toast_import_failed">Import failed: %1$s</string>
+    <string name="toast_backup_failed">Backup failed: %1$s</string>
+    <string name="toast_restore_failed">Restore failed: %1$s</string>
+    <string name="toast_backup_done">Backup complete: %1$s</string>
+    <string name="toast_restore_done">Restored %1$d chats / %2$d messages</string>
+    <string name="toast_cleared">Local data cleared</string>
+    <string name="err_unknown">Unknown error</string>
+
+    <!-- ========== 导入器 ========== -->
+    <string name="phase_unzip">Extracting archive</string>
+    <string name="phase_parse_convs">Parsing chats</string>
+    <string name="phase_restore_atts">Restoring attachments</string>
+    <string name="phase_parse_md">Parsing Markdown</string>
+    <string name="err_read_file">Cannot read %1$s</string>
+    <string name="err_open_zip">Cannot open the archive</string>
+    <string name="err_no_conversations">No conversations-*.json found. Pick the root folder of the ChatGPT export.</string>
+    <string name="err_parse_file">Failed to parse %1$s: %2$s</string>
+
+    <!-- ========== 备份 ========== -->
+    <string name="err_no_db">No local database yet. Import some data before backing up.</string>
+    <string name="err_write_backup">Cannot write the backup file</string>
+    <string name="err_open_backup">Cannot open the backup file</string>
+    <string name="phase_backup_db">Backing up database</string>
+    <string name="phase_backup_atts">Backing up attachments</string>
+    <string name="phase_unzip_backup">Extracting backup</string>
+    <string name="phase_replace">Replacing data</string>
+    <string name="phase_fix_paths">Fixing attachment paths</string>
+    <string name="err_no_db_in_zip">This zip has no chatvault.db — it may not be a ChatVault backup</string>
+    <string name="err_higher_version">The backup comes from a newer version (DB v%1$d). Update the app first.</string>
+    <string name="err_no_db_dir">Database folder not found</string>
+    <string name="err_restore_rolled_back">Restore failed; your original data was rolled back</string>
+    <string name="err_db_too_new">Backup database is too new (v%1$d)</string>
+    <string name="err_db_verify">Backup database failed verification: %1$s</string>
+
+    <!-- ========== 主题分类（数据库里存中文，展示时映射） ========== -->
+    <string name="cat_android">Android modding</string>
+    <string name="cat_network">Networking</string>
+    <string name="cat_dev">Programming</string>
+    <string name="cat_pc">PC &amp; OS</string>
+    <string name="cat_media">Media</string>
+    <string name="cat_hardware">Hardware</string>
+    <string name="cat_office">Study &amp; office</string>
+    <string name="cat_life">Everyday life</string>
+    <string name="cat_other">Other</string>
+
+    <!-- ========== 时间 ========== -->
+    <string name="unknown_time">Unknown time</string>
+    <string name="month_label_pattern">MMM yyyy</string>
+    <string name="common_export_chat">Export chat</string>
+    <string name="title_hit_snippet">%1$d messages · %2$s</string>
 </resources>

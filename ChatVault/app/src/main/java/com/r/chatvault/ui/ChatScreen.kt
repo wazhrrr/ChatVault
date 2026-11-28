@@ -69,11 +69,13 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.r.chatvault.data.Attachment
 import com.r.chatvault.data.Conversation
+import com.r.chatvault.R
 import com.r.chatvault.data.Fmt
 import com.r.chatvault.data.Message
 import com.r.chatvault.data.SearchHit
@@ -214,7 +216,7 @@ fun ChatScreen(
                     onValueChange = { query = it },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
-                    placeholder = { Text("在本会话中搜索", style = MaterialTheme.typography.bodySmall) },
+                    placeholder = { Text(stringResource(R.string.chat_search_hint), style = MaterialTheme.typography.bodySmall) },
                     textStyle = MaterialTheme.typography.bodyMedium
                 )
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(start = 6.dp)) {
@@ -232,7 +234,7 @@ fun ChatScreen(
                                 }
                             },
                             modifier = Modifier.size(30.dp)
-                        ) { Icon(Icons.Outlined.KeyboardArrowUp, "上一条", modifier = Modifier.size(18.dp)) }
+                        ) { Icon(Icons.Outlined.KeyboardArrowUp, stringResource(R.string.chat_prev), modifier = Modifier.size(18.dp)) }
                         IconButton(
                             onClick = {
                                 if (hits.isNotEmpty()) {
@@ -241,7 +243,7 @@ fun ChatScreen(
                                 }
                             },
                             modifier = Modifier.size(30.dp)
-                        ) { Icon(Icons.Outlined.KeyboardArrowDown, "下一条", modifier = Modifier.size(18.dp)) }
+                        ) { Icon(Icons.Outlined.KeyboardArrowDown, stringResource(R.string.chat_next), modifier = Modifier.size(18.dp)) }
                     }
                 }
             }
@@ -321,7 +323,7 @@ fun ChatScreen(
                                 ) {
                                     if (m.childIdList.size > 1) {
                                         Text(
-                                            "分支 ${m.childIdList.size}",
+                                            stringResource(R.string.branch_count, m.childIdList.size),
                                             Modifier
                                                 .clickable { branchTarget = m }
                                                 .padding(end = 8.dp),
@@ -343,7 +345,7 @@ fun ChatScreen(
                                     ) {
                                         Icon(
                                             Icons.Outlined.MoreVert,
-                                            "消息操作",
+                                            stringResource(R.string.msg_actions),
                                             modifier = Modifier.size(14.dp),
                                             tint = colors.userText.copy(alpha = 0.7f)
                                         )
@@ -366,12 +368,12 @@ fun ChatScreen(
                                 Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text(
-                                            "思考过程",
+                                            stringResource(R.string.reasoning),
                                             style = MaterialTheme.typography.labelMedium,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                         Text(
-                                            "  ${m.reasoning!!.length} 字",
+                                            "  " + stringResource(R.string.chars_count, m.reasoning!!.length),
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -426,7 +428,7 @@ fun ChatScreen(
                             }
                             if (m.childIdList.size > 1) {
                                 Text(
-                                    "分支 ${m.childIdList.size}",
+                                    stringResource(R.string.branch_count, m.childIdList.size),
                                     Modifier
                                         .padding(start = 10.dp)
                                         .clickable { branchTarget = m }
@@ -446,7 +448,7 @@ fun ChatScreen(
                             ) {
                                 Icon(
                                     Icons.Outlined.MoreVert,
-                                    "消息操作",
+                                    stringResource(R.string.msg_actions),
                                     modifier = Modifier.size(16.dp),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -465,7 +467,7 @@ fun ChatScreen(
             onCopy = {
                 clipboard.setText(AnnotatedString(msg.text.ifBlank { msg.reasoning ?: "" }))
                 actionTarget = null
-                vm.toast("已复制这条消息")
+                vm.toast(context.getString(R.string.copied_message))
             },
             onShare = {
                 val text = msg.text.ifBlank { msg.reasoning ?: "" }
@@ -474,7 +476,7 @@ fun ChatScreen(
                         type = "text/plain"
                         putExtra(Intent.EXTRA_TEXT, text)
                     }
-                    context.startActivity(Intent.createChooser(intent, "分享消息"))
+                    context.startActivity(Intent.createChooser(intent, context.getString(R.string.share_message)))
                 }
                 actionTarget = null
             },
@@ -554,24 +556,24 @@ private fun MessageActionsSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState()) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp)) {
             Text(
-                if (msg.role == "user") "我的消息" else "ChatGPT 回复",
+                if (msg.role == "user") stringResource(R.string.my_message) else stringResource(R.string.gpt_reply),
                 style = MaterialTheme.typography.titleSmall
             )
             Text(
-                "${Fmt.dateTime(msg.ts)} · ${msg.text.length} 字",
+                stringResource(R.string.time_with_chars, Fmt.dateTime(msg.ts), msg.text.length),
                 Modifier.padding(top = 2.dp, bottom = 8.dp),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            ActionRow(Icons.Outlined.ContentCopy, "复制全文", onCopy)
-            ActionRow(Icons.Outlined.Share, "分享为文本", onShare)
-            ActionRow(Icons.Outlined.FormatQuote, "保存为摘录…", onClip)
-            ActionRow(Icons.Outlined.BookmarkBorder, "加入书签", onBookmark)
+            ActionRow(Icons.Outlined.ContentCopy, stringResource(R.string.copy_all), onCopy)
+            ActionRow(Icons.Outlined.Share, stringResource(R.string.share_text), onShare)
+            ActionRow(Icons.Outlined.FormatQuote, stringResource(R.string.save_clip_ellipsis), onClip)
+            ActionRow(Icons.Outlined.BookmarkBorder, stringResource(R.string.add_bookmark), onBookmark)
             if (msg.childIdList.size > 1) {
-                ActionRow(Icons.Outlined.CallSplit, "查看其他分支（${msg.childIdList.size}）", onBranch)
+                ActionRow(Icons.Outlined.CallSplit, stringResource(R.string.other_branches, msg.childIdList.size), onBranch)
             }
-            ActionRow(Icons.Outlined.Info, "消息详情", onDetails)
+            ActionRow(Icons.Outlined.Info, stringResource(R.string.msg_details), onDetails)
             Column(Modifier.height(24.dp)) {}
         }
     }
@@ -604,27 +606,27 @@ private fun ClipSaveDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("保存为摘录") },
+        title = { Text(stringResource(R.string.save_clip)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = body,
                     onValueChange = { body = it },
-                    label = { Text("正文") },
+                    label = { Text(stringResource(R.string.body)) },
                     modifier = Modifier.fillMaxWidth().height(150.dp),
                     textStyle = MaterialTheme.typography.bodySmall
                 )
                 OutlinedTextField(
                     value = note,
                     onValueChange = { note = it },
-                    label = { Text("备注（可选）") },
+                    label = { Text(stringResource(R.string.note_optional)) },
                     modifier = Modifier.fillMaxWidth(),
                     textStyle = MaterialTheme.typography.bodySmall
                 )
                 OutlinedTextField(
                     value = tags,
                     onValueChange = { tags = it },
-                    label = { Text("标签（逗号分隔）") },
+                    label = { Text(stringResource(R.string.tags_comma)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     textStyle = MaterialTheme.typography.bodySmall
@@ -633,7 +635,7 @@ private fun ClipSaveDialog(
                 val available = allTags.filter { name -> current.none { it.equals(name, true) } }
                 if (available.isNotEmpty()) {
                     Text(
-                        "已有标签（点击添加）",
+                        stringResource(R.string.existing_tags),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -658,9 +660,9 @@ private fun ClipSaveDialog(
             TextButton(
                 onClick = { onSave(body, note, tags) },
                 enabled = body.isNotBlank()
-            ) { Text("保存") }
+            ) { Text(stringResource(R.string.common_save)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } }
     )
 }
 
@@ -677,9 +679,9 @@ private fun BranchSheet(
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState()) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp)) {
-            Text("这条消息的后续分支", style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(R.string.branches_title), style = MaterialTheme.typography.titleSmall)
             Text(
-                "导出包里被编辑废弃的回答也保留了下来，选中一条可以只读查看。",
+                stringResource(R.string.branches_hint),
                 Modifier.padding(top = 3.dp, bottom = 10.dp),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -705,13 +707,13 @@ private fun BranchSheet(
                         ) {}
                         Column(Modifier.weight(1f).padding(start = 10.dp)) {
                             Text(
-                                (if (child.role == "user") "我 · " else "GPT · ") + Fmt.dateTime(child.ts),
+                                (if (child.role == "user") stringResource(R.string.me_prefix) else "GPT · ") + Fmt.dateTime(child.ts),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = if (child.active) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                child.text.ifBlank { child.reasoning ?: "（无正文）" },
+                                child.text.ifBlank { child.reasoning ?: stringResource(R.string.no_text) },
                                 style = MaterialTheme.typography.bodySmall,
                                 maxLines = 3,
                                 overflow = TextOverflow.Ellipsis
@@ -719,7 +721,7 @@ private fun BranchSheet(
                         }
                         if (child.active) {
                             Text(
-                                "当前",
+                                stringResource(R.string.current),
                                 Modifier
                                     .background(
                                         MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
@@ -755,19 +757,19 @@ private fun BranchViewer(startId: String, vm: AppViewModel, onDismiss: () -> Uni
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text("另一条分支", style = MaterialTheme.typography.titleSmall)
+                        Text(stringResource(R.string.another_branch), style = MaterialTheme.typography.titleSmall)
                         Text(
-                            "只读预览 · ${chain.size} 条消息",
+                            stringResource(R.string.readonly_preview, chain.size),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    IconButton(onClick = onDismiss) { Icon(Icons.Outlined.Close, "关闭") }
+                    IconButton(onClick = onDismiss) { Icon(Icons.Outlined.Close, stringResource(R.string.common_close)) }
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 if (chain.isEmpty()) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("没有可显示的分支内容", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.no_branch_content), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 } else {
                     LazyColumn(
@@ -778,7 +780,8 @@ private fun BranchViewer(startId: String, vm: AppViewModel, onDismiss: () -> Uni
                         items(chain, key = { it.id }) { m ->
                             Column(Modifier.fillMaxWidth()) {
                                 Text(
-                                    (if (m.role == "user") "我" else "ChatGPT") + " · ${Fmt.dateTime(m.ts)}",
+                                    (if (m.role == "user") stringResource(R.string.common_me) else "ChatGPT") +
+                                        " · ${Fmt.dateTime(m.ts)}",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -807,18 +810,18 @@ private fun BranchViewer(startId: String, vm: AppViewModel, onDismiss: () -> Uni
 private fun MessageDetails(msg: Message, onClose: () -> Unit) {
     AlertDialog(
         onDismissRequest = onClose,
-        confirmButton = { TextButton(onClick = onClose) { Text("关闭") } },
-        title = { Text("消息详情") },
+        confirmButton = { TextButton(onClick = onClose) { Text(stringResource(R.string.common_close)) } },
+        title = { Text(stringResource(R.string.msg_details)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                DetailRow("角色", if (msg.role == "user") "我" else "ChatGPT")
-                DetailRow("时间", Fmt.dateTime(msg.ts))
-                DetailRow("类型", msg.contentType)
-                DetailRow("模型", msg.model ?: "未记录")
-                DetailRow("字数", "${msg.text.length} 字")
-                DetailRow("思考过程", if (msg.reasoning.isNullOrBlank()) "无" else "${msg.reasoning.length} 字")
-                DetailRow("消息 ID", msg.id)
-                DetailRow("分支", if (msg.childIdList.size > 1) "${msg.childIdList.size} 个后续分支" else "无")
+                DetailRow(stringResource(R.string.common_role), if (msg.role == "user") stringResource(R.string.common_me) else "ChatGPT")
+                DetailRow(stringResource(R.string.common_time), Fmt.dateTime(msg.ts))
+                DetailRow(stringResource(R.string.common_type), msg.contentType)
+                DetailRow(stringResource(R.string.common_model), msg.model?.let { modelLabel(it) } ?: stringResource(R.string.common_not_recorded))
+                DetailRow(stringResource(R.string.common_chars), stringResource(R.string.chars_count, msg.text.length))
+                DetailRow(stringResource(R.string.reasoning), if (msg.reasoning.isNullOrBlank()) stringResource(R.string.common_none) else stringResource(R.string.chars_count, msg.reasoning.length))
+                DetailRow(stringResource(R.string.message_id), msg.id)
+                DetailRow(stringResource(R.string.common_branches), if (msg.childIdList.size > 1) stringResource(R.string.branches_after, msg.childIdList.size) else stringResource(R.string.common_none))
             }
         }
     )
@@ -828,28 +831,28 @@ private fun MessageDetails(msg: Message, onClose: () -> Unit) {
 private fun ConversationDetails(conv: Conversation, state: UiState, onClose: () -> Unit) {
     AlertDialog(
         onDismissRequest = onClose,
-        confirmButton = { TextButton(onClick = onClose) { Text("关闭") } },
-        title = { Text("会话详情") },
+        confirmButton = { TextButton(onClick = onClose) { Text(stringResource(R.string.common_close)) } },
+        title = { Text(stringResource(R.string.chat_details)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                DetailRow("标题", conv.title)
-                if (!conv.alias.isNullOrBlank()) DetailRow("别名", conv.alias)
-                DetailRow("会话 ID", conv.id)
-                DetailRow("创建时间", Fmt.dateTime(conv.createTs))
-                DetailRow("更新时间", Fmt.dateTime(conv.updateTs))
-                DetailRow("消息数", "${conv.msgCount} 条")
-                DetailRow("文本量", "${Fmt.compact(conv.charCount)} 字")
-                DetailRow("主题", conv.category)
-                DetailRow("标签", if (conv.tags.isEmpty()) "无" else conv.tags.joinToString(" ") { "#$it" })
+                DetailRow(stringResource(R.string.common_title), conv.title)
+                if (!conv.alias.isNullOrBlank()) DetailRow(stringResource(R.string.common_alias), conv.alias)
+                DetailRow(stringResource(R.string.chat_id), conv.id)
+                DetailRow(stringResource(R.string.created), Fmt.dateTime(conv.createTs))
+                DetailRow(stringResource(R.string.updated), Fmt.dateTime(conv.updateTs))
+                DetailRow(stringResource(R.string.msg_count), stringResource(R.string.count_messages, conv.msgCount))
+                DetailRow(stringResource(R.string.text_size), stringResource(R.string.row_chars, Fmt.compact(conv.charCount)))
+                DetailRow(stringResource(R.string.common_topic), categoryLabel(conv.category))
+                DetailRow(stringResource(R.string.common_tags), if (conv.tags.isEmpty()) stringResource(R.string.common_none) else conv.tags.joinToString(" ") { "#$it" })
                 if (conv.msgCount > 1 && !conv.id.startsWith("md-") &&
                     state.messages.isNotEmpty() && state.messages.none { it.childIds.isNotBlank() }
                 ) {
-                    DetailRow("分支", "旧版数据，重新导入导出包后可查看")
+                    DetailRow(stringResource(R.string.common_branches), stringResource(R.string.old_data_hint))
                 }
-                DetailRow("默认模型", conv.model ?: "未记录")
-                DetailRow("附件", "${conv.attachmentCount} 个（实体 ${state.convAttachments.count { it.exists }}）")
+                DetailRow(stringResource(R.string.default_model), conv.model?.let { modelLabel(it) } ?: stringResource(R.string.common_not_recorded))
+                DetailRow(stringResource(R.string.common_attachments), stringResource(R.string.detail_attachments, conv.attachmentCount, state.convAttachments.count { it.exists }))
                 if (conv.msgCount != state.messages.size) {
-                    DetailRow("提示", "当前显示 ${state.messages.size} 条")
+                    DetailRow(stringResource(R.string.common_tip), stringResource(R.string.showing_now, state.messages.size))
                 }
             }
         }

@@ -40,8 +40,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.r.chatvault.R
 import com.r.chatvault.data.ClipItem
 import com.r.chatvault.data.Fmt
 import com.r.chatvault.vm.AppViewModel
@@ -64,7 +66,7 @@ fun ClipsScreen(vm: AppViewModel, state: UiState, onOpen: (String, String) -> Un
             onValueChange = vm::setClipQuery,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
             singleLine = true,
-            placeholder = { Text("搜索摘录正文、备注、标签", style = MaterialTheme.typography.bodySmall) },
+            placeholder = { Text(stringResource(R.string.clip_search_hint), style = MaterialTheme.typography.bodySmall) },
             textStyle = MaterialTheme.typography.bodySmall
         )
 
@@ -76,7 +78,7 @@ fun ClipsScreen(vm: AppViewModel, state: UiState, onOpen: (String, String) -> Un
                 FilterChip(
                     selected = state.clipTag == null,
                     onClick = { vm.setClipTag(null) },
-                    label = { Text("全部", style = MaterialTheme.typography.labelSmall) }
+                    label = { Text(stringResource(R.string.common_all), style = MaterialTheme.typography.labelSmall) }
                 )
                 tags.forEach { tag ->
                     FilterChip(
@@ -89,7 +91,10 @@ fun ClipsScreen(vm: AppViewModel, state: UiState, onOpen: (String, String) -> Un
         }
 
         Text(
-            "共 ${state.clips.size} 条摘录" + if (state.clipCount > state.clips.size) "（显示 ${state.clips.size}/${state.clipCount}）" else "",
+            stringResource(R.string.clip_count, state.clips.size) +
+                if (state.clipCount > state.clips.size) {
+                    " " + stringResource(R.string.clip_showing, state.clips.size, state.clipCount)
+                } else "",
             Modifier.padding(horizontal = 18.dp, vertical = 4.dp),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -98,7 +103,7 @@ fun ClipsScreen(vm: AppViewModel, state: UiState, onOpen: (String, String) -> Un
         if (state.clips.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    "还没有摘录。\n在会话里长按消息，选择「保存为摘录」。",
+                    stringResource(R.string.clip_empty),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -144,14 +149,14 @@ fun ClipsScreen(vm: AppViewModel, state: UiState, onOpen: (String, String) -> Un
     deleting?.let { clip ->
         AlertDialog(
             onDismissRequest = { deleting = null },
-            title = { Text("删除这条摘录？") },
-            text = { Text("只删除摘录本身，原会话不受影响。") },
+            title = { Text(stringResource(R.string.clip_delete_title)) },
+            text = { Text(stringResource(R.string.clip_delete_body)) },
             confirmButton = {
                 TextButton(onClick = { vm.deleteClip(clip.id); deleting = null }) {
-                    Text("删除", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.common_delete), color = MaterialTheme.colorScheme.error)
                 }
             },
-            dismissButton = { TextButton(onClick = { deleting = null }) { Text("取消") } }
+            dismissButton = { TextButton(onClick = { deleting = null }) { Text(stringResource(R.string.common_cancel)) } }
         )
     }
 }
@@ -183,7 +188,7 @@ private fun ClipCard(
                 modifier = Modifier.size(16.dp)
             )
             Text(
-                clip.convTitle ?: "未关联会话",
+                clip.convTitle ?: stringResource(R.string.no_chat_linked),
                 Modifier.padding(start = 6.dp).weight(1f),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -197,23 +202,23 @@ private fun ClipCard(
             )
             Box {
                 IconButton(onClick = onMenu, modifier = Modifier.size(30.dp)) {
-                    Icon(Icons.Outlined.MoreVert, "更多", modifier = Modifier.size(17.dp))
+                    Icon(Icons.Outlined.MoreVert, stringResource(R.string.common_more), modifier = Modifier.size(17.dp))
                 }
                 DropdownMenu(expanded = menuOpen, onDismissRequest = onDismissMenu) {
                     DropdownMenuItem(
-                        text = { Text("编辑备注与标签") },
+                        text = { Text(stringResource(R.string.edit_note_tags)) },
                         leadingIcon = { Icon(Icons.Outlined.Edit, null) },
                         onClick = onEdit
                     )
                     if (clip.canRevert) {
                         DropdownMenuItem(
-                            text = { Text("还原上次修改") },
+                            text = { Text(stringResource(R.string.revert_last)) },
                             leadingIcon = { Icon(Icons.Outlined.Restore, null) },
                             onClick = onRevert
                         )
                     }
                     DropdownMenuItem(
-                        text = { Text("删除") },
+                        text = { Text(stringResource(R.string.common_delete)) },
                         leadingIcon = { Icon(Icons.Outlined.DeleteOutline, null) },
                         onClick = onDelete
                     )
@@ -272,20 +277,20 @@ private fun ClipEditDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("编辑备注与标签") },
+        title = { Text(stringResource(R.string.edit_note_tags)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = note,
                     onValueChange = { note = it },
-                    label = { Text("备注") },
+                    label = { Text(stringResource(R.string.common_note)) },
                     modifier = Modifier.fillMaxWidth(),
                     textStyle = MaterialTheme.typography.bodySmall
                 )
                 OutlinedTextField(
                     value = tags,
                     onValueChange = { tags = it },
-                    label = { Text("标签（逗号分隔）") },
+                    label = { Text(stringResource(R.string.tags_comma)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     textStyle = MaterialTheme.typography.bodySmall
@@ -294,7 +299,7 @@ private fun ClipEditDialog(
                 val available = allTags.filter { name -> current.none { it.equals(name, true) } }
                 if (available.isNotEmpty()) {
                     Text(
-                        "已有标签（点击添加）",
+                        stringResource(R.string.existing_tags),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -314,15 +319,15 @@ private fun ClipEditDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSave(note, tags) }) { Text("保存") }
+            TextButton(onClick = { onSave(note, tags) }) { Text(stringResource(R.string.common_save)) }
         },
         dismissButton = {
             Row {
                 TextButton(onClick = {
                     note = clip.note ?: ""
                     tags = clip.tags
-                }) { Text("还原") }
-                TextButton(onClick = onDismiss) { Text("取消") }
+                }) { Text(stringResource(R.string.common_revert)) }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
             }
         }
     )

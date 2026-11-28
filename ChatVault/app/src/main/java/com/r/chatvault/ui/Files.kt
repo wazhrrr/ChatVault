@@ -50,6 +50,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -64,6 +65,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.FileProvider
+import com.r.chatvault.R
 import com.r.chatvault.data.Attachment
 import com.r.chatvault.data.Fmt
 import kotlinx.coroutines.Dispatchers
@@ -171,14 +173,16 @@ fun FileRow(a: Attachment, onClick: () -> Unit) {
                 modifier = Modifier.size(19.dp)
             )
         }
+        val missingText = stringResource(R.string.file_missing)
+        val orphanText = stringResource(R.string.files_orphan_suffix)
         Column(Modifier.weight(1f).padding(start = 12.dp)) {
             Text(a.name, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
                 buildString {
                     append(Fmt.bytes(a.size))
                     append(" · ")
-                    append(if (a.exists) a.kind else "文件缺失")
-                    if (a.convId == null) append(" · 未被会话引用")
+                    append(if (a.exists) a.kind else missingText)
+                    if (a.convId == null) append(orphanText)
                 },
                 style = MaterialTheme.typography.labelSmall,
                 color = if (a.exists) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error
@@ -227,15 +231,15 @@ fun AttachmentViewer(a: Attachment, onDismiss: () -> Unit) {
                     Column(Modifier.weight(1f)) {
                         Text(a.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(
-                            "${Fmt.bytes(a.size)} · ${a.kind}" + if (!a.exists) " · 文件缺失" else "",
+                            "${Fmt.bytes(a.size)} · ${a.kind}" + if (!a.exists) stringResource(R.string.files_missing_suffix) else "",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     IconButton(onClick = { if (!openExternal(context, a)) onDismiss() }) {
-                        Icon(Icons.Outlined.OpenInNew, "用其他应用打开")
+                        Icon(Icons.Outlined.OpenInNew, stringResource(R.string.open_other_app))
                     }
-                    IconButton(onClick = onDismiss) { Icon(Icons.Outlined.Close, "关闭") }
+                    IconButton(onClick = onDismiss) { Icon(Icons.Outlined.Close, stringResource(R.string.common_close)) }
                 }
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     when {
@@ -246,9 +250,9 @@ fun AttachmentViewer(a: Attachment, onDismiss: () -> Unit) {
                         a.kind == "text" -> TextPane(a.path)
                         a.kind == "pdf" || a.kind == "doc" -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(iconFor(a.kind), null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(40.dp))
-                            Text("这类文件不支持内嵌预览", Modifier.padding(top = 10.dp), style = MaterialTheme.typography.bodyMedium)
+                            Text(stringResource(R.string.no_preview), Modifier.padding(top = 10.dp), style = MaterialTheme.typography.bodyMedium)
                             Text(
-                                "点右上角 ↗ 用系统里其他应用打开",
+                                stringResource(R.string.open_with_hint),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -266,9 +270,9 @@ fun AttachmentViewer(a: Attachment, onDismiss: () -> Unit) {
 private fun MissingFile(a: Attachment) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Icon(Icons.Outlined.InsertDriveFile, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(44.dp))
-        Text("这个附件在导出包里没有实体文件", Modifier.padding(top = 12.dp), style = MaterialTheme.typography.bodyMedium)
+        Text(stringResource(R.string.no_entity), Modifier.padding(top = 12.dp), style = MaterialTheme.typography.bodyMedium)
         Text(
-            "记录名：${a.name}（${Fmt.bytes(a.size)}）",
+            stringResource(R.string.record_name, a.name, Fmt.bytes(a.size)),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -282,7 +286,7 @@ private fun ZoomImage(path: String) {
     var offset by remember { mutableStateOf(Offset.Zero) }
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         if (bmp == null) {
-            Text("图片解码失败", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.image_decode_failed), color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
             Image(
                 bmp,
@@ -328,7 +332,7 @@ private fun ZipPane(path: String) {
     LazyColumn(Modifier.fillMaxSize()) {
         item {
             Text(
-                "压缩包内 ${entries.size} 个文件（最多显示 400 条）",
+                stringResource(R.string.zip_entries, entries.size),
                 Modifier.padding(16.dp),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -342,7 +346,10 @@ private fun ZipPane(path: String) {
 
 @Composable
 private fun TextPane(path: String) {
-    val content = remember(path) {
+    val total = remember(path) { File(path).length() }
+    val tooLarge = stringResource(R.string.file_too_large, Fmt.bytes(total))
+    val cannotRead = stringResource(R.string.cannot_read, "")
+    val content = remember(path, tooLarge, cannotRead) {
         runCatching {
             val f = File(path)
             val limit = 150_000
@@ -350,10 +357,10 @@ private fun TextPane(path: String) {
                 f.inputStream().bufferedReader().use { r ->
                     val buf = CharArray(limit)
                     val n = r.read(buf, 0, limit)
-                    String(buf, 0, n.coerceAtLeast(0)) + "\n\n…（文件较大，仅显示前 15 万字符，共 ${Fmt.bytes(f.length())}）"
+                    String(buf, 0, n.coerceAtLeast(0)) + "\n\n" + tooLarge
                 }
             } else f.readText()
-        }.getOrElse { "无法读取：${it.message}" }
+        }.getOrElse { cannotRead + (it.message ?: "") }
     }
     SelectionContainer {
         Text(

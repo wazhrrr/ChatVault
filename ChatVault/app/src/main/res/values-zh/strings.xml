@@ -1,0 +1,376 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 简体中文。键名必须与 values/strings.xml 完全一致。 -->
+<resources>
+    <string name="app_name">ChatVault</string>
+
+    <!-- ========== 通用 ========== -->
+    <string name="common_ok">确定</string>
+    <string name="common_cancel">取消</string>
+    <string name="common_delete">删除</string>
+    <string name="common_save">保存</string>
+    <string name="common_close">关闭</string>
+    <string name="common_all">全部</string>
+    <string name="common_more">更多</string>
+    <string name="common_reset">重置</string>
+    <string name="common_apply">应用</string>
+    <string name="common_copy">复制</string>
+    <string name="common_revert">还原</string>
+    <string name="common_none">无</string>
+    <string name="common_any">不限</string>
+    <string name="common_me">我</string>
+    <string name="common_role">角色</string>
+    <string name="common_time">时间</string>
+    <string name="common_type">类型</string>
+    <string name="common_model">模型</string>
+    <string name="common_chars">字数</string>
+    <string name="common_title">标题</string>
+    <string name="common_alias">别名</string>
+    <string name="common_note">备注</string>
+    <string name="common_tags">标签</string>
+    <string name="common_topic">主题</string>
+    <string name="common_year">年份</string>
+    <string name="common_messages">消息</string>
+    <string name="common_attachments">附件</string>
+    <string name="common_code">代码</string>
+    <string name="common_clips">摘录</string>
+    <string name="common_not_recorded">未记录</string>
+    <string name="common_starred">收藏</string>
+    <string name="common_unstar">取消收藏</string>
+    <string name="common_import">导入</string>
+    <string name="common_tip">提示</string>
+    <string name="common_branches">分支</string>
+
+    <!-- ========== 导航 ========== -->
+    <string name="nav_chats">会话</string>
+    <string name="nav_search">全文搜索</string>
+    <string name="nav_clips">摘录与书签</string>
+    <string name="nav_code">代码片段</string>
+    <string name="nav_stats">统计图表</string>
+    <string name="nav_files">附件与文件</string>
+    <string name="nav_settings">设置</string>
+
+    <!-- ========== 抽屉 / 会话列表 ========== -->
+    <string name="drawer_open">打开抽屉</string>
+    <string name="drawer_stats">%1$d 个会话 · %2$s 条消息</string>
+    <string name="conversation_list">会话列表</string>
+    <string name="filter_button">筛选</string>
+    <string name="filter_button_count">筛选 %1$d</string>
+    <string name="all_tags">全部标签</string>
+    <string name="loading">正在读取…</string>
+    <string name="no_data_hint">还没有数据\n点上方按钮导入导出包</string>
+    <string name="folder">文件夹</string>
+    <string name="recent_chats">最近会话</string>
+    <string name="more_in_drawer">更多会话、筛选与排序在左侧抽屉中。</string>
+
+    <string name="sort_newest">最新优先</string>
+    <string name="sort_oldest">最早优先</string>
+    <string name="sort_messages">消息最多</string>
+    <string name="sort_chars">字数最多</string>
+    <string name="sort_title">标题 A-Z</string>
+
+    <string name="import_folder">导入文件夹</string>
+    <string name="import_zip">导入 ZIP 压缩包</string>
+    <string name="import_md">导入 Markdown</string>
+
+    <string name="delete_chat">删除对话</string>
+    <string name="delete_chat_title">删除这个会话？</string>
+    <string name="delete_chat_title_named">删除《%1$s》？</string>
+    <string name="delete_chat_body">会同时删除消息、附件实体、摘录、代码块和标签关联，且不可恢复。原始导出包不受影响。</string>
+    <string name="delete_chat_body_short">会同时删除消息、附件实体、摘录、代码块和标签关联，且不可恢复。</string>
+
+    <string name="edit_name_tags">编辑名称与标签</string>
+    <string name="export_md">导出为 Markdown</string>
+    <string name="export_md_ready">已生成 Markdown，选择应用分享</string>
+    <string name="export_failed">导出失败</string>
+    <string name="chat_details">会话详情</string>
+    <string name="menu_show_all">显示全部消息</string>
+    <string name="menu_only_user">只看我的提问</string>
+
+    <string name="name_tags">名称与标签</string>
+    <string name="alias_hint">别名（留空则用原标题）</string>
+    <string name="existing_tags">已有标签（点击添加）</string>
+    <string name="new_tag">新标签</string>
+    <string name="add_tag">添加标签</string>
+    <string name="tag_hint">标签会显示在会话列表，也能在抽屉里筛选；重新导入不会丢。</string>
+    <string name="original_title">原标题：%1$s</string>
+
+    <string name="no_data">还没有导入数据</string>
+    <string name="empty_import_hint">点右上角「导入」，选择 ChatGPT 导出包的文件夹、.zip，\n或者选择一份 Markdown 聊天记录。</string>
+    <string name="empty_import_sub">导入后可离线浏览全部会话、搜索正文与代码、查看附件与统计图表。</string>
+
+    <string name="row_meta">%1$s · %2$d 条</string>
+    <string name="row_attachments">%1$d 附件</string>
+    <string name="row_meta_cat">%1$s · %2$d 条 · %3$s</string>
+    <string name="row_chars">%1$s 字</string>
+
+    <string name="count_messages">%1$d 条</string>
+    <string name="showing_now">当前显示 %1$d 条</string>
+
+    <!-- ========== 聊天页 ========== -->
+    <string name="chat_search_hint">在本会话中搜索</string>
+    <string name="chat_prev">上一条</string>
+    <string name="chat_next">下一条</string>
+    <string name="msg_actions">消息操作</string>
+    <string name="reasoning">思考过程</string>
+    <string name="copied_message">已复制这条消息</string>
+    <string name="share_message">分享消息</string>
+    <string name="my_message">我的消息</string>
+    <string name="gpt_reply">ChatGPT 回复</string>
+    <string name="copy_all">复制全文</string>
+    <string name="share_text">分享为文本</string>
+    <string name="save_clip_ellipsis">保存为摘录…</string>
+    <string name="add_bookmark">加入书签</string>
+    <string name="msg_details">消息详情</string>
+    <string name="save_clip">保存为摘录</string>
+    <string name="body">正文</string>
+    <string name="note_optional">备注（可选）</string>
+    <string name="tags_comma">标签（逗号分隔）</string>
+
+    <string name="branch_count">分支 %1$d</string>
+    <string name="chars_count">%1$d 字</string>
+    <string name="time_with_chars">%1$s · %2$d 字</string>
+    <string name="other_branches">查看其他分支（%1$d）</string>
+    <string name="me_prefix">"我 · "</string>
+    <string name="branches_after">%1$d 个后续分支</string>
+
+    <string name="branches_title">这条消息的后续分支</string>
+    <string name="branches_hint">导出包里被编辑废弃的回答也保留了下来，选中一条可以只读查看。</string>
+    <string name="no_text">（无正文）</string>
+    <string name="current">当前</string>
+    <string name="another_branch">另一条分支</string>
+    <string name="no_branch_content">没有可显示的分支内容</string>
+    <string name="readonly_preview">只读预览 · %1$d 条消息</string>
+    <string name="old_data_hint">旧版数据，重新导入导出包后可查看</string>
+    <string name="default_model">默认模型</string>
+    <string name="detail_attachments">%1$d 个（实体 %2$d）</string>
+    <string name="created">创建时间</string>
+    <string name="updated">更新时间</string>
+    <string name="msg_count">消息数</string>
+    <string name="text_size">文本量</string>
+    <string name="chat_id">会话 ID</string>
+    <string name="message_id">消息 ID</string>
+
+    <!-- ========== 全文搜索 ========== -->
+    <string name="search_hint">搜消息、思考过程、代码、摘录、附件文本</string>
+    <string name="search_try">试试这些关键词</string>
+    <string name="search_scope">搜索会同时覆盖正文、思考过程、代码片段、摘录和文本文档。</string>
+    <string name="searching">搜索中…</string>
+    <string name="search_empty">没有找到匹配内容</string>
+    <string name="match_count">%1$d 条匹配</string>
+    <string name="code_with_lang">代码 %1$s</string>
+
+    <!-- ========== 摘录 ========== -->
+    <string name="clip_search_hint">搜索摘录正文、备注、标签</string>
+    <string name="clip_delete_title">删除这条摘录？</string>
+    <string name="clip_delete_body">只删除摘录本身，原会话不受影响。</string>
+    <string name="no_chat_linked">未关联会话</string>
+    <string name="edit_note_tags">编辑备注与标签</string>
+    <string name="revert_last">还原上次修改</string>
+    <string name="clip_empty">还没有摘录。\n打开消息右侧的 ⋮ 菜单，选择「保存为摘录」。</string>
+    <string name="clip_count">共 %1$d 条摘录</string>
+    <string name="clip_showing">（显示 %1$d/%2$d）</string>
+
+    <!-- ========== 代码片段 ========== -->
+    <string name="code_search_hint">搜索代码内容或语言</string>
+    <string name="code_count">共 %1$d 个代码块 · %2$d 个会话</string>
+    <string name="collapse_all">收起全部</string>
+    <string name="expand_all">展开全部</string>
+    <string name="code_empty">还没有代码片段。\n导入含代码块的会话后会自动抽取。</string>
+    <string name="code_copied">已复制 %1$s 代码</string>
+    <string name="code_group_meta">%1$d 个会话 · %2$d 段</string>
+    <string name="code_item_meta">%1$d 段 · %2$s</string>
+    <string name="open_chat">打开会话</string>
+    <string name="unnamed_chat">未命名会话</string>
+    <string name="unnamed_note">未命名笔记</string>
+
+    <!-- ========== 附件与文件 ========== -->
+    <string name="file_missing">文件缺失</string>
+    <string name="files_orphan_suffix">" · 未被会话引用"</string>
+    <string name="files_missing_suffix">" · 文件缺失"</string>
+    <string name="open_other_app">用其他应用打开</string>
+    <string name="no_preview">这类文件不支持内嵌预览</string>
+    <string name="open_with_hint">点右上角 ↗ 用系统里其他应用打开</string>
+    <string name="no_entity">这个附件在导出包里没有实体文件</string>
+    <string name="record_name">记录名：%1$s（%2$s）</string>
+    <string name="image_decode_failed">图片解码失败</string>
+    <string name="zip_entries">压缩包内 %1$d 个文件（最多显示 400 条）</string>
+    <string name="file_too_large">…（文件较大，仅显示前 15 万字符，共 %1$s）</string>
+    <string name="cannot_read">无法读取：%1$s</string>
+
+    <string name="files_all">全部 %1$d</string>
+    <string name="files_missing">缺失 %1$d</string>
+    <string name="files_images">图片 %1$d</string>
+    <string name="files_docs">文档 %1$d</string>
+    <string name="files_orphans">未引用 %1$d</string>
+    <string name="files_search_hint">按文件名筛选</string>
+    <string name="files_count">共 %1$d 个文件</string>
+    <string name="files_missing_note">" · 其中 %1$d 个缺失实体"</string>
+    <string name="files_image_note">" · 图片可直接点开缩放查看"</string>
+    <string name="files_empty">没有文件</string>
+
+    <!-- ========== 统计 ========== -->
+    <string name="stats_tab_trend">趋势</string>
+    <string name="stats_tab_topic">主题</string>
+    <string name="stats_tab_hour">时段</string>
+    <string name="stats_tab_model">模型</string>
+    <string name="stats_conversations">会话数</string>
+    <string name="stats_messages">消息数</string>
+    <string name="stats_chars_k">字数(千)</string>
+    <string name="stats_overview">数据总览</string>
+    <string name="stats_filter">筛选</string>
+    <string name="chart_settings">图表设置</string>
+    <string name="stats_loading">正在统计…</string>
+    <string name="stats_convs">会话</string>
+    <string name="stats_msgs">消息</string>
+    <string name="stats_chars">字数</string>
+    <string name="stats_atts">附件</string>
+    <string name="stats_missing_note">%1$d 个附件只有记录、没有实体文件（导出包未包含）</string>
+    <string name="stats_all_years">全部年份</string>
+    <string name="stats_empty">没有可统计的数据</string>
+    <string name="stats_trend_hint">点柱子看当月明细 · 右上角可调 %1$d 上限与 X 轴区间</string>
+    <string name="stats_topic_title">会话主题分布</string>
+    <string name="stats_topic_sub">按标题关键词自动归类，共 %1$d 个会话</string>
+    <string name="stats_hour_title">消息在一天内的分布（本地时间）</string>
+    <string name="stats_hour_sub">横轴为 0–23 时 · 点任意柱子查看该小时消息量</string>
+    <string name="stats_model_title">回复模型分布</string>
+    <string name="stats_model_sub">仅统计带模型标记的助手回复</string>
+    <string name="stats_auto">自动</string>
+    <string name="stats_y_max">手动指定 Y 轴上限</string>
+    <string name="stats_y_max_label">上限 %1$d</string>
+    <string name="stats_y_step">Y 轴刻度步长</string>
+    <string name="stats_x_range">X 轴区间 %1$d – %2$d（共 %3$d 项）</string>
+    <string name="stats_grid">显示网格线</string>
+    <string name="stats_labels">显示数值标签</string>
+    <string name="stats_line">折线模式</string>
+    <string name="stats_restore">恢复默认</string>
+    <string name="stats_month_summary">共 %1$d 个月 · 最忙是 %2$s（%3$d 个会话、%4$d 条消息）</string>
+    <string name="count_suffix_items">" 个"</string>
+    <string name="count_suffix_msgs">" 条"</string>
+
+    <!-- ========== 筛选 ========== -->
+    <string name="filter_title">筛选与排序</string>
+    <string name="filter_hint">与统计图表共用同一组条件；改完后列表和图表一起更新。</string>
+    <string name="filter_sort">排序</string>
+    <string name="filter_created">创建时间</string>
+    <string name="filter_from">" 开始：%1$s"</string>
+    <string name="filter_to">" 结束：%1$s"</string>
+    <string name="filter_clear_dates">" 清除时间"</string>
+
+    <!-- ========== 导入报告 ========== -->
+    <string name="import_done">导入完成</string>
+    <string name="report_added">新增</string>
+    <string name="report_updated">更新</string>
+    <string name="report_skipped">跳过</string>
+    <string name="report_messages">消息</string>
+    <string name="report_atts">附件实体 %1$d 个</string>
+    <string name="report_md">" · Markdown %1$d 个"</string>
+    <string name="report_orphans">" · 未引用文件 %1$d 个"</string>
+    <string name="report_missing_title">缺失附件 %1$d 个</string>
+    <string name="report_missing_sub">导出包里只有记录、没有实体文件；点一项可跳到原消息</string>
+    <string name="report_orphan_title">未被引用的文件 %1$d 个</string>
+    <string name="report_orphan_sub">磁盘上有实体，但没有任何会话引用；点一项可直接查看</string>
+    <string name="report_none">没有缺失附件，也没有未引用文件。</string>
+
+    <!-- ========== 设置 ========== -->
+    <string name="settings_source">数据源</string>
+    <string name="settings_source_desc">导入 ChatGPT 官方导出包，或直接导入 Markdown 聊天记录。已导入的会话按 update_time 增量更新，不会重复写入。</string>
+    <string name="settings_zip">ZIP 包</string>
+    <string name="settings_import_md">导入 Markdown（可多选，时间取文件修改时间）</string>
+    <string name="settings_library">本地库</string>
+    <string name="settings_library_stats">%1$d 个会话 · %2$s 条消息 · %3$d 个附件实体</string>
+    <string name="settings_clear">清空</string>
+    <string name="settings_local_note">所有数据只存在本机（SQLite + 私有目录），不联网、不上传。\n1.2.0 起会保留被编辑废弃的对话分支；旧数据重新导入一次导出包即可补齐（收藏、标签、摘录都会保留）。</string>
+    <string name="settings_backup">备份与恢复</string>
+    <string name="settings_backup_desc">把数据库和已还原的附件打包成一个 zip。换机、重装或升级前建议先备份一份。</string>
+    <string name="settings_backup_to">备份到文件</string>
+    <string name="settings_restore_from">从备份恢复</string>
+    <string name="settings_backup_note">数据库结构升级前会自动在应用私有目录留一份快照；恢复失败会自动回滚到原数据。</string>
+    <string name="settings_appearance">外观</string>
+    <string name="settings_theme">主题</string>
+    <string name="settings_theme_system">跟随系统</string>
+    <string name="settings_theme_dark">深色</string>
+    <string name="settings_theme_light">浅色</string>
+    <string name="settings_font">字号</string>
+    <string name="settings_code_wrap">代码块自动换行</string>
+    <string name="settings_code_wrap_desc">关闭后代码块左右滑动查看，长命令更易读</string>
+    <string name="settings_language">语言</string>
+    <string name="settings_language_note">切换后立即生效，不需要重启。</string>
+    <string name="settings_language_system">跟随系统</string>
+    <string name="settings_about">关于</string>
+    <string name="settings_about_desc">一个完全离线的 ChatGPT 导出浏览器：会话阅读、全文搜索、附件查看、统计图表。\n支持文件夹、ZIP 与 Markdown 三种导入方式；保留被编辑废弃的分支；自动抽取代码片段和文本文档索引；可备份、可恢复。</string>
+    <string name="settings_clear_title">清空本地数据？</string>
+    <string name="settings_clear_body">会删除全部会话、消息索引、摘录、代码片段、已还原的附件文件，以及升级前的本地数据库快照（原始导出包不受影响）。</string>
+    <string name="settings_clear_confirm">确认清空</string>
+    <string name="settings_restore_title">从备份恢复？</string>
+    <string name="settings_restore_body">恢复会覆盖当前全部会话、摘录、标签与附件。\n失败会自动回滚，但为稳妥起见，建议先做一次备份。</string>
+    <string name="settings_pick_backup">选择备份文件</string>
+    <string name="github_repo">GitHub 仓库</string>
+
+    <!-- ========== 进度与提示 ========== -->
+    <string name="progress_importing">正在导入</string>
+    <string name="progress_backing_up">正在备份</string>
+    <string name="progress_restoring">正在恢复</string>
+    <string name="progress_preparing">准备中</string>
+    <string name="progress_keep_foreground">请保持应用在前台，不要锁屏或切走。</string>
+
+    <string name="toast_chat_deleted">已删除会话</string>
+    <string name="toast_saved_clip">已保存到摘录</string>
+    <string name="toast_bookmarked">已加入书签</string>
+    <string name="toast_note_updated">备注与标签已更新</string>
+    <string name="toast_reverted">已还原上次修改</string>
+    <string name="toast_clip_deleted">已删除摘录</string>
+    <string name="toast_prepare_import">准备导入</string>
+    <string name="toast_prepare_md">准备导入 Markdown</string>
+    <string name="toast_prepare_backup">准备备份</string>
+    <string name="toast_prepare_restore">准备恢复</string>
+    <string name="toast_import_failed">导入失败：%1$s</string>
+    <string name="toast_backup_failed">备份失败：%1$s</string>
+    <string name="toast_restore_failed">恢复失败：%1$s</string>
+    <string name="toast_backup_done">备份完成：%1$s</string>
+    <string name="toast_restore_done">恢复完成：%1$d 个会话 / %2$d 条消息</string>
+    <string name="toast_cleared">已清空本地数据</string>
+    <string name="err_unknown">未知错误</string>
+
+    <!-- ========== 导入器 ========== -->
+    <string name="phase_unzip">解压压缩包</string>
+    <string name="phase_parse_convs">解析会话</string>
+    <string name="phase_restore_atts">还原附件</string>
+    <string name="phase_parse_md">解析 Markdown</string>
+    <string name="err_read_file">无法读取 %1$s</string>
+    <string name="err_open_zip">无法打开压缩包</string>
+    <string name="err_no_conversations">没有找到 conversations-*.json，请确认选择的是 ChatGPT 导出包的根目录</string>
+    <string name="err_parse_file">解析 %1$s 失败：%2$s</string>
+
+    <!-- ========== 备份 ========== -->
+    <string name="err_no_db">本地数据库还不存在，先导入数据再备份</string>
+    <string name="err_write_backup">无法写入备份文件</string>
+    <string name="err_open_backup">无法打开备份文件</string>
+    <string name="phase_backup_db">备份数据库</string>
+    <string name="phase_backup_atts">备份附件</string>
+    <string name="phase_unzip_backup">解压备份</string>
+    <string name="phase_replace">替换数据</string>
+    <string name="phase_fix_paths">修复附件路径</string>
+    <string name="err_no_db_in_zip">这个 zip 里没有 chatvault.db，可能不是 ChatVault 备份</string>
+    <string name="err_higher_version">备份来自更高版本（DB v%1$d），请先升级应用</string>
+    <string name="err_no_db_dir">找不到数据库目录</string>
+    <string name="err_restore_rolled_back">恢复失败，已回滚到原数据</string>
+    <string name="err_db_too_new">备份数据库版本过高（v%1$d）</string>
+    <string name="err_db_verify">备份数据库校验失败：%1$s</string>
+
+    <!-- ========== 主题分类 ========== -->
+    <string name="cat_android">安卓玩机</string>
+    <string name="cat_network">网络路由</string>
+    <string name="cat_dev">编程开发</string>
+    <string name="cat_pc">电脑系统</string>
+    <string name="cat_media">影音图像</string>
+    <string name="cat_hardware">硬件性能</string>
+    <string name="cat_office">学习办公</string>
+    <string name="cat_life">生活杂问</string>
+    <string name="cat_other">其他</string>
+
+    <!-- ========== 时间 ========== -->
+    <string name="unknown_time">未知时间</string>
+    <string name="month_label_pattern">yyyy年M月</string>
+    <string name="common_export_chat">导出会话</string>
+    <string name="title_hit_snippet">%1$d 条消息 · %2$s</string>
+</resources>

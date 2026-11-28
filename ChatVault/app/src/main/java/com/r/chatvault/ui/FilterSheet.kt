@@ -43,8 +43,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import com.r.chatvault.R
 import com.r.chatvault.data.SortMode
 import java.time.Instant
 import java.time.ZoneId
@@ -143,9 +145,9 @@ fun FilterSheet(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 18.dp)
         ) {
-            Text("筛选与排序", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.filter_title), style = MaterialTheme.typography.titleMedium)
             Text(
-                "与统计图表共用同一组条件；改完后列表和图表一起更新。",
+                stringResource(R.string.filter_hint),
                 Modifier.padding(top = 2.dp, bottom = 8.dp),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -192,7 +194,7 @@ private fun FilterBody(
     onReset: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    SectionLabel("排序")
+    SectionLabel(stringResource(R.string.filter_sort))
     FlowRow(
         Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -208,7 +210,7 @@ private fun FilterBody(
     }
 
     if (years.isNotEmpty()) {
-        SectionLabel("年份")
+        SectionLabel(stringResource(R.string.common_year))
         FlowRow(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -217,7 +219,7 @@ private fun FilterBody(
             FilterChip(
                 selected = draft.year == null,
                 onClick = { draft.year = null },
-                label = { Text("全部", style = MaterialTheme.typography.labelSmall) }
+                label = { Text(stringResource(R.string.common_all), style = MaterialTheme.typography.labelSmall) }
             )
             years.take(10).forEach { y ->
                 FilterChip(
@@ -230,7 +232,7 @@ private fun FilterBody(
     }
 
     if (categories.isNotEmpty()) {
-        SectionLabel("主题")
+        SectionLabel(stringResource(R.string.common_topic))
         FlowRow(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -239,20 +241,20 @@ private fun FilterBody(
             FilterChip(
                 selected = draft.category == null,
                 onClick = { draft.category = null },
-                label = { Text("全部", style = MaterialTheme.typography.labelSmall) }
+                label = { Text(stringResource(R.string.common_all), style = MaterialTheme.typography.labelSmall) }
             )
             categories.forEach { cat ->
                 FilterChip(
                     selected = draft.category == cat,
                     onClick = { draft.category = if (draft.category == cat) null else cat },
-                    label = { Text(cat, style = MaterialTheme.typography.labelSmall) }
+                    label = { Text(categoryLabel(cat), style = MaterialTheme.typography.labelSmall) }
                 )
             }
         }
     }
 
     if (models.isNotEmpty()) {
-        SectionLabel("模型")
+        SectionLabel(stringResource(R.string.common_model))
         FlowRow(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -261,19 +263,19 @@ private fun FilterBody(
             FilterChip(
                 selected = draft.model == null,
                 onClick = { draft.model = null },
-                label = { Text("全部", style = MaterialTheme.typography.labelSmall) }
+                label = { Text(stringResource(R.string.common_all), style = MaterialTheme.typography.labelSmall) }
             )
             models.forEach { m ->
                 FilterChip(
                     selected = draft.model == m,
                     onClick = { draft.model = if (draft.model == m) null else m },
-                    label = { Text(m, style = MaterialTheme.typography.labelSmall) }
+                    label = { Text(modelLabel(m), style = MaterialTheme.typography.labelSmall) }
                 )
             }
         }
     }
 
-    SectionLabel("创建时间")
+    SectionLabel(stringResource(R.string.filter_created))
     Row(
         Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -286,7 +288,7 @@ private fun FilterBody(
         ) {
             Icon(Icons.Outlined.CalendarMonth, null, modifier = Modifier.size(16.dp))
             Text(
-                " 开始：${formatDate(draft.from)}",
+                stringResource(R.string.filter_from, formatDate(draft.from)),
                 style = MaterialTheme.typography.labelSmall,
                 maxLines = 1
             )
@@ -298,7 +300,7 @@ private fun FilterBody(
         ) {
             Icon(Icons.Outlined.CalendarMonth, null, modifier = Modifier.size(16.dp))
             Text(
-                " 结束：${formatDate(draft.to)}",
+                stringResource(R.string.filter_to, formatDate(draft.to)),
                 style = MaterialTheme.typography.labelSmall,
                 maxLines = 1
             )
@@ -308,7 +310,7 @@ private fun FilterBody(
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
             TextButton(onClick = { draft.from = null; draft.to = null }) {
                 Icon(Icons.Outlined.Close, null, modifier = Modifier.size(14.dp))
-                Text(" 清除时间", style = MaterialTheme.typography.labelSmall)
+                Text(stringResource(R.string.filter_clear_dates), style = MaterialTheme.typography.labelSmall)
             }
         }
     }
@@ -325,14 +327,14 @@ private fun FilterBody(
                 onDismiss()
             },
             modifier = Modifier.weight(1f)
-        ) { Text("重置") }
+        ) { Text(stringResource(R.string.common_reset)) }
         Button(
             onClick = {
                 onApply(draft.sort, draft.year, draft.category, draft.model, draft.from, draft.to)
                 onDismiss()
             },
             modifier = Modifier.weight(1f)
-        ) { Text("应用") }
+        ) { Text(stringResource(R.string.common_apply)) }
     }
 }
 
@@ -346,12 +348,13 @@ private fun SectionLabel(text: String) {
     )
 }
 
+@Composable
 private fun sortLabel(m: SortMode): String = when (m) {
-    SortMode.NEWEST -> "最新优先"
-    SortMode.OLDEST -> "最早优先"
-    SortMode.MESSAGES -> "消息最多"
-    SortMode.CHARS -> "字数最多"
-    SortMode.TITLE -> "标题 A-Z"
+    SortMode.NEWEST -> stringResource(R.string.sort_newest)
+    SortMode.OLDEST -> stringResource(R.string.sort_oldest)
+    SortMode.MESSAGES -> stringResource(R.string.sort_messages)
+    SortMode.CHARS -> stringResource(R.string.sort_chars)
+    SortMode.TITLE -> stringResource(R.string.sort_title)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -368,18 +371,20 @@ private fun DatePickerModal(
         confirmButton = {
             TextButton(onClick = {
                 onPick(state.selectedDateMillis?.let { fromUtcMillis(it, endOfDay) })
-            }) { Text("确定") }
+            }) { Text(stringResource(R.string.common_ok)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("取消") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
         }
     ) {
         DatePicker(state)
     }
 }
 
+@Composable
 private fun formatDate(ts: Long?): String =
-    if (ts == null) "不限" else Instant.ofEpochSecond(ts).atZone(ZoneId.systemDefault()).toLocalDate().toString()
+    if (ts == null) stringResource(R.string.common_any)
+    else Instant.ofEpochSecond(ts).atZone(ZoneId.systemDefault()).toLocalDate().toString()
 
 /** 本地日期 -> DatePicker 需要的 UTC 零点毫秒 */
 private fun toUtcMillis(ts: Long): Long {

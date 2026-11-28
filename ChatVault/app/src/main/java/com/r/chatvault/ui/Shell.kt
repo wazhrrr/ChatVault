@@ -75,10 +75,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.r.chatvault.data.Attachment
+import com.r.chatvault.R
 import com.r.chatvault.data.Conversation
 import com.r.chatvault.data.Fmt
 import com.r.chatvault.data.Palette
@@ -173,7 +175,7 @@ fun MainScreen(
                 navigationIcon = {
                     if (!wide) {
                         IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                            Icon(Icons.Outlined.Menu, "打开抽屉")
+                            Icon(Icons.Outlined.Menu, stringResource(R.string.drawer_open))
                         }
                     } else {
                         Box(Modifier.size(4.dp))
@@ -184,7 +186,7 @@ fun MainScreen(
                         IconButton(onClick = { chatUi.searchOpen = !chatUi.searchOpen }) {
                             Icon(
                                 Icons.Outlined.Search,
-                                "会话内搜索",
+                                stringResource(R.string.chat_search_hint),
                                 tint = if (chatUi.searchOpen) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -192,30 +194,30 @@ fun MainScreen(
                         IconButton(onClick = vm::toggleStar) {
                             Icon(
                                 if (state.selected?.starred == true) Icons.Outlined.Star else Icons.Outlined.StarBorder,
-                                "收藏",
+                                stringResource(R.string.common_starred),
                                 tint = if (state.selected?.starred == true) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                         Box {
                             IconButton(onClick = { chatUi.menuOpen = true }) {
-                                Icon(Icons.Outlined.MoreVert, "更多")
+                                Icon(Icons.Outlined.MoreVert, stringResource(R.string.common_more))
                             }
                             DropdownMenu(expanded = chatUi.menuOpen, onDismissRequest = { chatUi.menuOpen = false }) {
                                 DropdownMenuItem(
-                                    text = { Text(if (chatUi.onlyUser) "显示全部消息" else "只看我的提问") },
+                                    text = { Text(if (chatUi.onlyUser) stringResource(R.string.menu_show_all) else stringResource(R.string.menu_only_user)) },
                                     onClick = { chatUi.onlyUser = !chatUi.onlyUser; chatUi.menuOpen = false }
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("会话详情") },
+                                    text = { Text(stringResource(R.string.chat_details)) },
                                     onClick = { chatUi.detailsOpen = true; chatUi.menuOpen = false }
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("编辑名称与标签") },
+                                    text = { Text(stringResource(R.string.edit_name_tags)) },
                                     onClick = { chatUi.editOpen = true; chatUi.menuOpen = false }
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("导出为 Markdown") },
+                                    text = { Text(stringResource(R.string.export_md)) },
                                     leadingIcon = { Icon(Icons.Outlined.IosShare, null) },
                                     onClick = {
                                         chatUi.menuOpen = false
@@ -224,12 +226,16 @@ fun MainScreen(
                                             val ok = Exporter.shareMarkdown(
                                                 context, conv, state.messages, state.convAttachments
                                             )
-                                            vm.toast(if (ok) "已生成 Markdown，选择应用分享" else "导出失败")
+                                            vm.toast(
+                                                context.getString(
+                                                    if (ok) R.string.export_md_ready else R.string.export_failed
+                                                )
+                                            )
                                         }
                                     }
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("删除对话", color = MaterialTheme.colorScheme.error) },
+                                    text = { Text(stringResource(R.string.delete_chat), color = MaterialTheme.colorScheme.error) },
                                     leadingIcon = {
                                         Icon(
                                             Icons.Outlined.DeleteOutline,
@@ -249,25 +255,25 @@ fun MainScreen(
                             vm.closeConversation()
                             vm.setScreen(Screen.SEARCH)
                         }) {
-                            Icon(Icons.Outlined.Search, "全文搜索")
+                            Icon(Icons.Outlined.Search, stringResource(R.string.nav_search))
                         }
                         Box {
                             IconButton(onClick = { importMenu = true }) {
-                                Icon(Icons.Outlined.CreateNewFolder, "导入")
+                                Icon(Icons.Outlined.CreateNewFolder, stringResource(R.string.common_import))
                             }
                             DropdownMenu(expanded = importMenu, onDismissRequest = { importMenu = false }) {
                                 DropdownMenuItem(
-                                    text = { Text("导入文件夹") },
+                                    text = { Text(stringResource(R.string.import_folder)) },
                                     leadingIcon = { Icon(Icons.Outlined.FolderOpen, null) },
                                     onClick = { importMenu = false; onPickFolder() }
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("导入 ZIP 压缩包") },
+                                    text = { Text(stringResource(R.string.import_zip)) },
                                     leadingIcon = { Icon(Icons.Outlined.FolderZip, null) },
                                     onClick = { importMenu = false; onPickZip() }
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("导入 Markdown") },
+                                    text = { Text(stringResource(R.string.import_md)) },
                                     leadingIcon = { Icon(Icons.Outlined.Description, null) },
                                     onClick = { importMenu = false; onPickMarkdown() }
                                 )
@@ -375,9 +381,9 @@ fun MainScreen(
     if (chatUi.deleteOpen && state.selected != null) {
         AlertDialog(
             onDismissRequest = { chatUi.deleteOpen = false },
-            title = { Text("删除这个会话？") },
+            title = { Text(stringResource(R.string.delete_chat_title)) },
             text = {
-                Text("会同时删除消息、附件实体、摘录、代码块和标签关联，且不可恢复。原始导出包不受影响。")
+                Text(stringResource(R.string.delete_chat_body))
             },
             confirmButton = {
                 TextButton(onClick = {
@@ -385,11 +391,11 @@ fun MainScreen(
                     chatUi.deleteOpen = false
                     if (id != null) vm.deleteConversation(id)
                 }) {
-                    Text("删除", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.common_delete), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { chatUi.deleteOpen = false }) { Text("取消") }
+                TextButton(onClick = { chatUi.deleteOpen = false }) { Text(stringResource(R.string.common_cancel)) }
             }
         )
     }
@@ -408,14 +414,15 @@ fun MainScreen(
     reportViewer?.let { a -> AttachmentViewer(a) { reportViewer = null } }
 }
 
+@Composable
 private fun screenTitle(screen: Screen): String = when (screen) {
-    Screen.CHATS -> "会话"
-    Screen.SEARCH -> "全文搜索"
-    Screen.CLIPS -> "摘录与书签"
-    Screen.CODE -> "代码片段"
-    Screen.STATS -> "统计图表"
-    Screen.FILES -> "附件与文件"
-    Screen.SETTINGS -> "设置"
+    Screen.CHATS -> stringResource(R.string.nav_chats)
+    Screen.SEARCH -> stringResource(R.string.nav_search)
+    Screen.CLIPS -> stringResource(R.string.nav_clips)
+    Screen.CODE -> stringResource(R.string.nav_code)
+    Screen.STATS -> stringResource(R.string.nav_stats)
+    Screen.FILES -> stringResource(R.string.nav_files)
+    Screen.SETTINGS -> stringResource(R.string.nav_settings)
 }
 
 @Composable
@@ -444,14 +451,18 @@ private fun DrawerPanel(
                     Column(Modifier.padding(start = 10.dp)) {
                         Text("ChatVault", style = MaterialTheme.typography.titleMedium)
                         Text(
-                            "${state.totalConvs} 个会话 · ${Fmt.compact(state.totalMsgs)} 条消息",
+                            stringResource(
+                                R.string.drawer_stats,
+                                state.totalConvs,
+                                Fmt.compact(state.totalMsgs)
+                            ),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
                 Row(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    SmallAction("文件夹", Icons.Outlined.FolderOpen, Modifier.weight(1f)) {
+                    SmallAction(stringResource(R.string.folder), Icons.Outlined.FolderOpen, Modifier.weight(1f)) {
                         closeDrawer(); onPickFolder()
                     }
                     SmallAction("ZIP", Icons.Outlined.FolderZip, Modifier.weight(1f)) {
@@ -466,28 +477,28 @@ private fun DrawerPanel(
 
         item {
             Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
-                DrawerNav("会话", Icons.Outlined.ChatBubbleOutline, state.screen == Screen.CHATS) {
+                DrawerNav(stringResource(R.string.nav_chats), Icons.Outlined.ChatBubbleOutline, state.screen == Screen.CHATS) {
                     vm.closeConversation(); vm.setScreen(Screen.CHATS); closeDrawer()
                 }
-                DrawerNav("全文搜索", Icons.Outlined.Search, state.screen == Screen.SEARCH) {
+                DrawerNav(stringResource(R.string.nav_search), Icons.Outlined.Search, state.screen == Screen.SEARCH) {
                     vm.closeConversation(); vm.setScreen(Screen.SEARCH); closeDrawer()
                 }
                 DrawerNav(
-                    "摘录与书签", Icons.Outlined.BookmarkBorder, state.screen == Screen.CLIPS,
+                    stringResource(R.string.nav_clips), Icons.Outlined.BookmarkBorder, state.screen == Screen.CLIPS,
                     badge = if (state.clipCount > 0) state.clipCount else null
                 ) {
                     vm.closeConversation(); vm.setScreen(Screen.CLIPS); closeDrawer()
                 }
-                DrawerNav("代码片段", Icons.Outlined.Code, state.screen == Screen.CODE) {
+                DrawerNav(stringResource(R.string.nav_code), Icons.Outlined.Code, state.screen == Screen.CODE) {
                     vm.closeConversation(); vm.setScreen(Screen.CODE); closeDrawer()
                 }
-                DrawerNav("统计图表", Icons.Outlined.BarChart, state.screen == Screen.STATS) {
+                DrawerNav(stringResource(R.string.nav_stats), Icons.Outlined.BarChart, state.screen == Screen.STATS) {
                     vm.closeConversation(); vm.setScreen(Screen.STATS); closeDrawer()
                 }
-                DrawerNav("附件与文件", Icons.Outlined.FolderOpen, state.screen == Screen.FILES) {
+                DrawerNav(stringResource(R.string.nav_files), Icons.Outlined.FolderOpen, state.screen == Screen.FILES) {
                     vm.closeConversation(); vm.setScreen(Screen.FILES); closeDrawer()
                 }
-                DrawerNav("设置", Icons.Outlined.Settings, state.screen == Screen.SETTINGS) {
+                DrawerNav(stringResource(R.string.nav_settings), Icons.Outlined.Settings, state.screen == Screen.SETTINGS) {
                     vm.closeConversation(); vm.setScreen(Screen.SETTINGS); closeDrawer()
                 }
             }
@@ -499,7 +510,7 @@ private fun DrawerPanel(
                 Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("会话列表", style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.conversation_list), style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
                 TextButton(onClick = { filterOpen = true }) {
                     Icon(
                         Icons.Outlined.FilterList,
@@ -508,7 +519,11 @@ private fun DrawerPanel(
                         tint = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        " 筛选" + if (state.filterCount > 0) " ${state.filterCount}" else "",
+                        if (state.filterCount > 0) {
+                            stringResource(R.string.filter_button_count, state.filterCount)
+                        } else {
+                            stringResource(R.string.filter_button)
+                        },
                         style = MaterialTheme.typography.labelSmall
                     )
                 }
@@ -520,7 +535,7 @@ private fun DrawerPanel(
                 FilterChip(
                     selected = state.starredOnly,
                     onClick = { vm.setStarredOnly(!state.starredOnly) },
-                    label = { Text("收藏", style = MaterialTheme.typography.labelSmall) },
+                    label = { Text(stringResource(R.string.common_starred), style = MaterialTheme.typography.labelSmall) },
                     leadingIcon = {
                         Icon(
                             if (state.starredOnly) Icons.Outlined.Star else Icons.Outlined.StarBorder,
@@ -544,7 +559,7 @@ private fun DrawerPanel(
                             if (state.screen != Screen.CHATS) vm.setScreen(Screen.CHATS)
                             vm.setTagFilter(null)
                         },
-                        label = { Text("全部标签", style = MaterialTheme.typography.labelSmall) }
+                        label = { Text(stringResource(R.string.all_tags), style = MaterialTheme.typography.labelSmall) }
                     )
                     state.tags.take(12).forEach { t ->
                         FilterChip(
@@ -569,7 +584,8 @@ private fun DrawerPanel(
                         modifier = Modifier.size(30.dp)
                     )
                     Text(
-                        if (state.loading) "正在读取…" else "还没有数据\n点上方按钮导入导出包",
+                        if (state.loading) stringResource(R.string.loading)
+                        else stringResource(R.string.no_data_hint),
                         Modifier.padding(top = 10.dp),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -594,7 +610,7 @@ private fun DrawerPanel(
                         onDismissRequest = { menuFor = null }
                     ) {
                         DropdownMenuItem(
-                            text = { Text(if (c.starred) "取消收藏" else "收藏") },
+                            text = { Text(if (c.starred) stringResource(R.string.common_unstar) else stringResource(R.string.common_starred)) },
                             leadingIcon = {
                                 Icon(
                                     if (c.starred) Icons.Outlined.Star else Icons.Outlined.StarBorder,
@@ -607,7 +623,7 @@ private fun DrawerPanel(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("编辑名称与标签") },
+                            text = { Text(stringResource(R.string.edit_name_tags)) },
                             leadingIcon = { Icon(Icons.Outlined.Edit, null) },
                             onClick = {
                                 editingConv = c
@@ -615,7 +631,7 @@ private fun DrawerPanel(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("删除对话", color = MaterialTheme.colorScheme.error) },
+                            text = { Text(stringResource(R.string.delete_chat), color = MaterialTheme.colorScheme.error) },
                             leadingIcon = {
                                 Icon(
                                     Icons.Outlined.DeleteOutline,
@@ -651,18 +667,18 @@ private fun DrawerPanel(
     deletingConv?.let { conv ->
         AlertDialog(
             onDismissRequest = { deletingConv = null },
-            title = { Text("删除《${conv.displayTitle}》？") },
-            text = { Text("会同时删除消息、附件实体、摘录、代码块和标签关联，且不可恢复。") },
+            title = { Text(stringResource(R.string.delete_chat_title_named, conv.displayTitle)) },
+            text = { Text(stringResource(R.string.delete_chat_body_short)) },
             confirmButton = {
                 TextButton(onClick = {
                     deletingConv = null
                     vm.deleteConversation(conv.id)
                 }) {
-                    Text("删除", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.common_delete), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { deletingConv = null }) { Text("取消") }
+                TextButton(onClick = { deletingConv = null }) { Text(stringResource(R.string.common_cancel)) }
             }
         )
     }
@@ -685,12 +701,13 @@ private fun DrawerPanel(
     }
 }
 
+@Composable
 private fun sortLabel(m: SortMode): String = when (m) {
-    SortMode.NEWEST -> "最新优先"
-    SortMode.OLDEST -> "最早优先"
-    SortMode.MESSAGES -> "消息最多"
-    SortMode.CHARS -> "字数最多"
-    SortMode.TITLE -> "标题 A-Z"
+    SortMode.NEWEST -> stringResource(R.string.sort_newest)
+    SortMode.OLDEST -> stringResource(R.string.sort_oldest)
+    SortMode.MESSAGES -> stringResource(R.string.sort_messages)
+    SortMode.CHARS -> stringResource(R.string.sort_chars)
+    SortMode.TITLE -> stringResource(R.string.sort_title)
 }
 
 @Composable
@@ -767,8 +784,12 @@ private fun ConvRow(
                 color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
             )
             Text(
-                "${Fmt.date(c.createTs)} · ${c.msgCount} 条" +
-                    if (c.attachmentCount > 0) " · ${c.attachmentCount} 附件" else "",
+                stringResource(R.string.row_meta, Fmt.date(c.createTs), c.msgCount) +
+                    if (c.attachmentCount > 0) {
+                        " · " + stringResource(R.string.row_attachments, c.attachmentCount)
+                    } else {
+                        ""
+                    },
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -813,18 +834,18 @@ private fun EditConvDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("名称与标签") },
+        title = { Text(stringResource(R.string.name_tags)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(
                     value = alias,
                     onValueChange = { alias = it },
-                    label = { Text("别名（留空则用原标题）") },
+                    label = { Text(stringResource(R.string.alias_hint)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     textStyle = MaterialTheme.typography.bodySmall
                 )
-                Text("原标题：${conv.title}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.original_title, conv.title), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (tags.isNotEmpty()) {
                     Row(
                         Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -842,7 +863,7 @@ private fun EditConvDialog(
                 val availableTags = allTags.filter { name -> tags.none { it.equals(name, true) } }
                 if (availableTags.isNotEmpty()) {
                     Text(
-                        "已有标签（点击添加）",
+                        stringResource(R.string.existing_tags),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -863,26 +884,26 @@ private fun EditConvDialog(
                     OutlinedTextField(
                         value = input,
                         onValueChange = { input = it },
-                        label = { Text("新标签") },
+                        label = { Text(stringResource(R.string.new_tag)) },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         textStyle = MaterialTheme.typography.bodySmall
                     )
                     IconButton(onClick = { addTag() }) {
-                        Icon(Icons.Outlined.Add, "添加标签")
+                        Icon(Icons.Outlined.Add, stringResource(R.string.add_tag))
                     }
                 }
                 Text(
-                    "标签会显示在会话列表，也能在抽屉里筛选；重新导入不会丢。",
+                    stringResource(R.string.tag_hint),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSave(alias, tags) }) { Text("保存") }
+            TextButton(onClick = { onSave(alias, tags) }) { Text(stringResource(R.string.common_save)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } }
     )
 }
 
@@ -894,15 +915,15 @@ private fun ChatsHome(state: UiState, onOpen: (String) -> Unit) {
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("还没有导入数据", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.no_data), style = MaterialTheme.typography.titleMedium)
             Text(
-                "点右上角「导入」，选择 ChatGPT 导出包的文件夹、.zip，\n或者选择一份 Markdown 聊天记录。",
+                stringResource(R.string.empty_import_hint),
                 Modifier.padding(top = 10.dp),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                "导入后可离线浏览全部会话、搜索正文与代码、查看附件与统计图表。",
+                stringResource(R.string.empty_import_sub),
                 Modifier.padding(top = 6.dp),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -917,12 +938,12 @@ private fun ChatsHome(state: UiState, onOpen: (String) -> Unit) {
     ) {
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                HomeStat("会话", Fmt.compact(state.totalConvs), Modifier.weight(1f))
-                HomeStat("消息", Fmt.compact(state.totalMsgs), Modifier.weight(1f))
-                HomeStat("附件", Fmt.compact(state.totalAtts), Modifier.weight(1f))
+                HomeStat(stringResource(R.string.stats_convs), Fmt.compact(state.totalConvs), Modifier.weight(1f))
+                HomeStat(stringResource(R.string.stats_msgs), Fmt.compact(state.totalMsgs), Modifier.weight(1f))
+                HomeStat(stringResource(R.string.stats_atts), Fmt.compact(state.totalAtts), Modifier.weight(1f))
             }
             Text(
-                "最近会话",
+                stringResource(R.string.recent_chats),
                 Modifier.padding(top = 20.dp, bottom = 4.dp),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -945,13 +966,18 @@ private fun ChatsHome(state: UiState, onOpen: (String) -> Unit) {
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        "${Fmt.date(c.createTs)} · ${c.msgCount} 条 · ${c.category}",
+                        stringResource(
+                            R.string.row_meta_cat,
+                            Fmt.date(c.createTs),
+                            c.msgCount,
+                            categoryLabel(c.category)
+                        ),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Text(
-                    Fmt.compact(c.charCount) + " 字",
+                    stringResource(R.string.row_chars, Fmt.compact(c.charCount)),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -960,7 +986,7 @@ private fun ChatsHome(state: UiState, onOpen: (String) -> Unit) {
         }
         item {
             Text(
-                "更多会话、筛选与排序在左侧抽屉中。",
+                stringResource(R.string.more_in_drawer),
                 Modifier.padding(top = 14.dp),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant

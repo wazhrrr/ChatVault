@@ -4,6 +4,8 @@ import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
+import com.r.chatvault.R
+import com.r.chatvault.util.AppLocale
 import androidx.documentfile.provider.DocumentFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
@@ -24,6 +26,8 @@ import kotlin.coroutines.coroutineContext
 class Importer(private val ctx: Context, private val store: Store) {
 
     data class Progress(val phase: String, val done: Int, val total: Int)
+
+    private fun str(resId: Int, vararg args: Any): String = AppLocale.str(ctx, resId, *args)
 
     private class Source(val name: String, val size: Long, val open: () -> InputStream)
 
@@ -59,7 +63,7 @@ class Importer(private val ctx: Context, private val store: Store) {
                 val dir = File(ctx.cacheDir, "inbox_${System.currentTimeMillis()}")
                 dir.mkdirs()
                 tempDir = dir
-                onProgress(Progress("解压压缩包", 0, 0))
+                onProgress(Progress(str(R.string.phase_unzip), 0, 0))
                 unzipTo(uri, dir)
                 dir.listFiles()?.filter { it.isFile }?.map { f ->
                     Source(f.name, f.length()) { f.inputStream() }
@@ -94,7 +98,7 @@ class Importer(private val ctx: Context, private val store: Store) {
                 } else if (isInteresting(f.name ?: "")) {
                     out.add(
                         Source(f.name ?: "unknown", f.length()) {
-                            ctx.contentResolver.openInputStream(f.uri) ?: throw IllegalStateException("无法读取 ${f.name}")
+                            ctx.contentResolver.openInputStream(f.uri) ?: throw IllegalStateException(str(R.string.err_read_file, f.name ?: ""))
                         }
                     )
                 }
@@ -112,7 +116,7 @@ class Importer(private val ctx: Context, private val store: Store) {
     }
 
     private fun unzipTo(uri: Uri, dir: File) {
-        val input = ctx.contentResolver.openInputStream(uri) ?: throw IllegalStateException("无法打开压缩包")
+        val input = ctx.contentResolver.openInputStream(uri) ?: throw IllegalStateException(str(R.string.err_open_zip))
         ZipInputStream(input.buffered()).use { zis ->
             var entry = zis.nextEntry
             var count = 0
@@ -151,7 +155,7 @@ class Importer(private val ctx: Context, private val store: Store) {
             ?.let { parseNameMap(it) } ?: emptyMap()
 
         if (jsonFiles.isEmpty()) {
-            throw IllegalStateException("没有找到 conversations-*.json，请确认选择的是 ChatGPT 导出包的根目录")
+            throw IllegalStateException(str(R.string.err_no_conversations))
         }
 
         var added = 0
@@ -163,18 +167,18 @@ class Importer(private val ctx: Context, private val store: Store) {
 
         jsonFiles.forEachIndexed { index, src ->
             coroutineContext.ensureActive()
-            onProgress(Progress("解析会话", index, jsonFiles.size))
+            onProgress(Progress(str(R.string.phase_parse_convs), index, jsonFiles.size))
             val arr = try {
                 JSONArray(src.open().bufferedReader(Charsets.UTF_8).use { it.readText() })
             } catch (t: Throwable) {
-                throw IllegalStateException("解析 ${src.name} 失败：${t.message}")
+                throw IllegalStateException(str(R.string.err_parse_file, src.name, t.message ?: ""))
             }
             for (i in 0 until arr.length()) {
                 coroutineContext.ensureActive()
                 val o = arr.optJSONObject(i) ?: continue
                 val convId = o.optString("id").ifBlank { o.optString("conversation_id") }
                 if (convId.isBlank()) continue
-                val title = o.optString("title").ifBlank { "未命名会话" }
+                val title = o.optString("title").ifBlank { str(R.string.unnamed_chat) }
                 val createSec = o.optDouble("create_time", 0.0).toLong()
                 val updateSec = o.optDouble("update_time", createSec.toDouble()).toLong()
                 val existing = store.existingUpdateTs(convId)
@@ -359,7 +363,7 @@ class Importer(private val ctx: Context, private val store: Store) {
         }
 
         // 附件实体还原
-        onProgress(Progress("还原附件", 0, pending.size + datFiles.size))
+        onProgress(Progress(str(R.string.phase_restore_atts), 0, pending.size + datFiles.size))
         val blobDir = File(ctx.filesDir, "blobs").apply { mkdirs() }
         // 已被会话引用的附件：包含本次跳过的会话，防止重复导入时把附件误降级成孤儿
         val referenced = HashSet<String>(store.referencedAttachmentIds())
@@ -368,7 +372,7 @@ class Importer(private val ctx: Context, private val store: Store) {
         try {
             for ((idx, pa) in pending.withIndex()) {
                 coroutineContext.ensureActive()
-                if (idx % 20 == 0) onProgress(Progress("还原附件", idx, pending.size))
+                if (idx % 20 == 0) onProgress(Progress(str(R.string.phase_restore_atts), idx, pending.size))
                 referenced.add(pa.id)
                 val src = datFiles[pa.id]
                 var kind = kindOfName(pa.name)
@@ -469,7 +473,7 @@ class Importer(private val ctx: Context, private val store: Store) {
 
             uris.forEachIndexed { index, uri ->
                 coroutineContext.ensureActive()
-                onProgress(Progress("解析 Markdown", index, uris.size))
+                onProgress(Progress(str(R.string.phase_parse_md), index, uris.size))
                 try {
                     val name = displayName(uri) ?: "note.md"
                     val lname = name.lowercase()
@@ -482,7 +486,7 @@ class Importer(private val ctx: Context, private val store: Store) {
                         skipped++
                         return@forEachIndexed
                     }
-                    val fallback = name.substringBeforeLast('.').ifBlank { "未命名笔记" }
+                    val fallback = name.substringBeforeLast('.').ifBlank { str(R.string.unnamed_note) }
                     val parsed = MarkdownChat.parse(raw, fallback)
                     if (parsed.messages.isEmpty()) {
                         skipped++

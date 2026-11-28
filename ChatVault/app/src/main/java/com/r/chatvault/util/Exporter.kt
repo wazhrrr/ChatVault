@@ -3,6 +3,7 @@ package com.r.chatvault.util
 import android.content.Context
 import android.content.Intent
 import androidx.core.content.FileProvider
+import com.r.chatvault.R
 import com.r.chatvault.data.Attachment
 import com.r.chatvault.data.Conversation
 import com.r.chatvault.data.Fmt
@@ -48,7 +49,7 @@ object Exporter {
                 putExtra(Intent.EXTRA_SUBJECT, conv.title)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            context.startActivity(Intent.createChooser(intent, "导出会话"))
+            context.startActivity(Intent.createChooser(intent, context.getString(R.string.common_export_chat)))
         }.isSuccess
     }
 }

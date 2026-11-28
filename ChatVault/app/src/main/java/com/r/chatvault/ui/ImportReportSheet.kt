@@ -27,8 +27,10 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.r.chatvault.R
 import com.r.chatvault.data.Attachment
 import com.r.chatvault.data.Fmt
 import com.r.chatvault.data.ImportReport
@@ -55,12 +57,12 @@ fun ImportReportSheet(
                     modifier = Modifier.size(20.dp)
                 )
                 Text(
-                    "导入完成",
+                    stringResource(R.string.import_done),
                     Modifier.padding(start = 8.dp),
                     style = MaterialTheme.typography.titleMedium
                 )
                 TextButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
-                    Text("关闭", modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.End)
+                    Text(stringResource(R.string.common_close), modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.End)
                 }
             }
 
@@ -68,19 +70,15 @@ fun ImportReportSheet(
                 Modifier.fillMaxWidth().padding(top = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                MiniStat("新增", s.added)
-                MiniStat("更新", s.updated)
-                MiniStat("跳过", s.skipped)
-                MiniStat("消息", s.messages)
+                MiniStat(stringResource(R.string.report_added), s.added)
+                MiniStat(stringResource(R.string.report_updated), s.updated)
+                MiniStat(stringResource(R.string.report_skipped), s.skipped)
+                MiniStat(stringResource(R.string.report_messages), s.messages)
             }
             Text(
-                buildString {
-                    append("附件实体 ${s.attachments} 个")
-                    if (s.messages > 0 || s.mdFiles > 0) {
-                        if (s.mdFiles > 0) append(" · Markdown ${s.mdFiles} 个")
-                    }
-                    if (s.orphanFiles > 0) append(" · 未引用文件 ${s.orphanFiles} 个")
-                },
+                stringResource(R.string.report_atts, s.attachments) +
+                    (if (s.mdFiles > 0) stringResource(R.string.report_md, s.mdFiles) else "") +
+                    (if (s.orphanFiles > 0) stringResource(R.string.report_orphans, s.orphanFiles) else ""),
                 Modifier.padding(top = 8.dp),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -90,8 +88,8 @@ fun ImportReportSheet(
                 if (report.missing.isNotEmpty()) {
                     item {
                         SectionHeader(
-                            "缺失附件 ${report.missing.size} 个",
-                            "导出包里只有记录、没有实体文件；点一项可跳到原消息"
+                            stringResource(R.string.report_missing_title, report.missing.size),
+                            stringResource(R.string.report_missing_sub)
                         )
                     }
                     items(report.missing, key = { "m-${it.id}" }) { a ->
@@ -112,8 +110,8 @@ fun ImportReportSheet(
                 if (report.orphans.isNotEmpty()) {
                     item {
                         SectionHeader(
-                            "未被引用的文件 ${report.orphans.size} 个",
-                            "磁盘上有实体，但没有任何会话引用；点一项可直接查看"
+                            stringResource(R.string.report_orphan_title, report.orphans.size),
+                            stringResource(R.string.report_orphan_sub)
                         )
                     }
                     items(report.orphans, key = { "o-${it.id}" }) { a ->
@@ -125,7 +123,7 @@ fun ImportReportSheet(
                 if (report.missing.isEmpty() && report.orphans.isEmpty()) {
                     item {
                         Text(
-                            "没有缺失附件，也没有未引用文件。",
+                            stringResource(R.string.report_none),
                             Modifier.padding(vertical = 18.dp),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -187,7 +185,8 @@ private fun ReportRow(a: Attachment, missing: Boolean, onClick: () -> Unit) {
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                "${Fmt.bytes(a.size)} · ${if (missing) "文件缺失" else a.kind}",
+                "${Fmt.bytes(a.size)} · " +
+                    (if (missing) stringResource(R.string.file_missing) else a.kind),
                 style = MaterialTheme.typography.labelSmall,
                 color = if (missing) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
             )

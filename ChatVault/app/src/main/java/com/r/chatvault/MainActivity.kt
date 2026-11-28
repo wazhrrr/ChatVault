@@ -1,5 +1,6 @@
 package com.r.chatvault
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -28,10 +29,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.r.chatvault.ui.ChatVaultTheme
 import com.r.chatvault.ui.MainScreen
+import com.r.chatvault.util.AppLocale
 import com.r.chatvault.vm.AppViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -40,6 +43,11 @@ import java.util.Locale
 class MainActivity : ComponentActivity() {
 
     private val vm: AppViewModel by viewModels()
+
+    override fun attachBaseContext(newBase: Context) {
+        // 应用内语言：资源用包装后的 Context 加载；切语言后 recreate() 即可
+        super.attachBaseContext(AppLocale.wrap(newBase))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -103,7 +111,7 @@ class MainActivity : ComponentActivity() {
                             onRestore = { restoreLauncher.launch(arrayOf("application/zip", "*/*")) }
                         )
                         if (state.importing) {
-                            ImportOverlay(state.phase, state.progress)
+                            ImportOverlay(state.progressKind, state.phase, state.progress)
                         }
                     }
                 }
@@ -113,12 +121,14 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun ImportOverlay(phase: String, progress: Float) {
-    val title = when {
-        phase.contains("备份") -> "正在备份"
-        phase.contains("恢复") || phase.contains("替换") || phase.contains("解压备份") -> "正在恢复"
-        else -> "正在导入"
-    }
+private fun ImportOverlay(kind: Int, phase: String, progress: Float) {
+    val title = stringResource(
+        when (kind) {
+            1 -> R.string.progress_backing_up
+            2 -> R.string.progress_restoring
+            else -> R.string.progress_importing
+        }
+    )
     Box(
         Modifier.fillMaxSize().background(Color(0x99000000)),
         contentAlignment = Alignment.Center
@@ -130,7 +140,7 @@ private fun ImportOverlay(phase: String, progress: Float) {
             ) {
                 Text(title, style = MaterialTheme.typography.titleSmall)
                 Text(
-                    phase.ifBlank { "准备中" },
+                    phase.ifBlank { stringResource(R.string.progress_preparing) },
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -139,7 +149,7 @@ private fun ImportOverlay(phase: String, progress: Float) {
                     modifier = Modifier.fillMaxWidth()
                 )
                 Text(
-                    "请保持应用在前台，不要锁屏或切走。",
+                    stringResource(R.string.progress_keep_foreground),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

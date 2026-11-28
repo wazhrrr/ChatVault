@@ -39,11 +39,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.r.chatvault.R
 import com.r.chatvault.data.CodeItem
 import com.r.chatvault.data.Fmt
 import com.r.chatvault.vm.AppViewModel
@@ -58,7 +61,7 @@ private data class ConvCodeGroup(
 
 private data class MonthCodeGroup(
     val key: String,
-    val label: String,
+    val ts: Long,
     val count: Int,
     val convs: List<ConvCodeGroup>
 )
@@ -68,6 +71,7 @@ fun CodeScreen(vm: AppViewModel, state: UiState, onOpen: (String, String) -> Uni
     var expandedMonths by remember { mutableStateOf<Set<String>>(emptySet()) }
     var expandedConvs by remember { mutableStateOf<Set<String>>(emptySet()) }
     val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
 
     val groups = remember(state.codeItems) {
         state.codeItems.groupBy { Fmt.monthKey(it.ts) }
@@ -75,7 +79,7 @@ fun CodeScreen(vm: AppViewModel, state: UiState, onOpen: (String, String) -> Uni
                 val convs = items.groupBy { it.convId }.map { (convId, list) ->
                     ConvCodeGroup(
                         convId = convId,
-                        title = list.firstOrNull()?.convTitle ?: "未命名会话",
+                        title = list.firstOrNull()?.convTitle ?: "",
                         ts = list.maxOf { it.ts },
                         // 新消息在前；同一条消息里的多个代码块按抽取顺序（id 递增）排列
                     items = list.sortedWith(
@@ -87,7 +91,7 @@ fun CodeScreen(vm: AppViewModel, state: UiState, onOpen: (String, String) -> Uni
                 }.sortedByDescending { it.ts }
                 MonthCodeGroup(
                     key = key,
-                    label = Fmt.monthLabel(items.maxOf { it.ts }),
+                    ts = items.maxOf { it.ts },
                     count = items.size,
                     convs = convs
                 )
@@ -108,7 +112,7 @@ fun CodeScreen(vm: AppViewModel, state: UiState, onOpen: (String, String) -> Uni
             onValueChange = vm::setCodeQuery,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
             singleLine = true,
-            placeholder = { Text("搜索代码内容或语言", style = MaterialTheme.typography.bodySmall) },
+            placeholder = { Text(stringResource(R.string.code_search_hint), style = MaterialTheme.typography.bodySmall) },
             textStyle = MaterialTheme.typography.bodySmall
         )
 
@@ -119,7 +123,7 @@ fun CodeScreen(vm: AppViewModel, state: UiState, onOpen: (String, String) -> Uni
             FilterChip(
                 selected = state.codeLang == null,
                 onClick = { vm.setCodeLang(null) },
-                label = { Text("全部", style = MaterialTheme.typography.labelSmall) }
+                label = { Text(stringResource(R.string.common_all), style = MaterialTheme.typography.labelSmall) }
             )
             state.codeLangs.forEach { lang ->
                 FilterChip(
@@ -140,7 +144,11 @@ fun CodeScreen(vm: AppViewModel, state: UiState, onOpen: (String, String) -> Uni
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                "共 ${state.codeItems.size} 个代码块 · ${state.codeItems.map { it.convId }.distinct().size} 个会话",
+                stringResource(
+                    R.string.code_count,
+                    state.codeItems.size,
+                    state.codeItems.map { it.convId }.distinct().size
+                ),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.weight(1f)
@@ -157,7 +165,7 @@ fun CodeScreen(vm: AppViewModel, state: UiState, onOpen: (String, String) -> Uni
                     }
                 }) {
                     Text(
-                        if (allExpanded) "收起全部" else "展开全部",
+                        if (allExpanded) stringResource(R.string.collapse_all) else stringResource(R.string.expand_all),
                         style = MaterialTheme.typography.labelSmall
                     )
                 }
@@ -167,7 +175,7 @@ fun CodeScreen(vm: AppViewModel, state: UiState, onOpen: (String, String) -> Uni
         if (state.codeItems.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    "还没有代码片段。\n导入含代码块的会话后会自动抽取。",
+                    stringResource(R.string.code_empty),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -211,7 +219,7 @@ fun CodeScreen(vm: AppViewModel, state: UiState, onOpen: (String, String) -> Uni
                                         onOpen = { onOpen(item.convId, item.msgId) },
                                         onCopy = {
                                             clipboard.setText(AnnotatedString(item.code))
-                                            vm.toast("已复制 ${item.lang} 代码")
+                                            vm.toast(context.getString(R.string.code_copied, item.lang))
                                         }
                                     )
                                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -243,12 +251,12 @@ private fun MonthHeader(group: MonthCodeGroup, open: Boolean, onClick: () -> Uni
             modifier = Modifier.size(18.dp)
         )
         Text(
-            group.label,
+            monthLabel(group.ts),
             Modifier.padding(start = 8.dp).weight(1f),
             style = MaterialTheme.typography.titleSmall
         )
         Text(
-            "${group.convs.size} 个会话 · ${group.count} 段",
+            stringResource(R.string.code_group_meta, group.convs.size, group.count),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -277,13 +285,13 @@ private fun ConvCodeHeader(
         )
         Column(Modifier.weight(1f).padding(start = 8.dp)) {
             Text(
-                group.title,
+                group.title.ifBlank { stringResource(R.string.unnamed_chat) },
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                "${group.items.size} 段 · ${Fmt.date(group.ts)}",
+                stringResource(R.string.code_item_meta, group.items.size, Fmt.date(group.ts)),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -291,7 +299,7 @@ private fun ConvCodeHeader(
         IconButton(onClick = onOpenSource, modifier = Modifier.size(32.dp)) {
             Icon(
                 Icons.Outlined.OpenInNew,
-                "打开会话",
+                stringResource(R.string.open_chat),
                 modifier = Modifier.size(15.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -328,7 +336,7 @@ private fun CodeCard(
             IconButton(onClick = onCopy, modifier = Modifier.size(30.dp)) {
                 Icon(
                     Icons.Outlined.ContentCopy,
-                    "复制",
+                    stringResource(R.string.common_copy),
                     modifier = Modifier.size(14.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )

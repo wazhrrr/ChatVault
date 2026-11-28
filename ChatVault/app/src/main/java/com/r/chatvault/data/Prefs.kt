@@ -24,14 +24,19 @@ class Prefs(context: Context) {
     var bubbleWidth: Int
         get() = sp.getInt("bubbleWidth", 88)
         set(v) = sp.edit().putInt("bubbleWidth", v).apply()
+
+    /** 应用内语言："" = 跟随系统，其它值为 BCP-47 标签（zh / en） */
+    var langTag: String
+        get() = sp.getString("langTag", "") ?: ""
+        set(v) = sp.edit().putString("langTag", v).apply()
 }
 
 object Fmt {
-    private val dt = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.CHINA)
-    private val d = SimpleDateFormat("yyyy-MM-dd", Locale.CHINA)
-    private val hm = SimpleDateFormat("HH:mm", Locale.CHINA)
-    private val ym = SimpleDateFormat("yyyy-MM", Locale.CHINA)
-    private val ymLabel = SimpleDateFormat("yyyy年M月", Locale.CHINA)
+    // 日期用固定数字格式，避免不同语言的月份缩写导致列宽跳动；只有月份标题走资源里的 pattern
+    private val dt = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.ROOT)
+    private val d = SimpleDateFormat("yyyy-MM-dd", Locale.ROOT)
+    private val hm = SimpleDateFormat("HH:mm", Locale.ROOT)
+    private val ym = SimpleDateFormat("yyyy-MM", Locale.ROOT)
 
     fun dateTime(sec: Long): String = if (sec <= 0) "—" else dt.format(Date(sec * 1000))
     fun date(sec: Long): String = if (sec <= 0) "—" else d.format(Date(sec * 1000))
@@ -40,33 +45,17 @@ object Fmt {
     /** 代码片段按月分组：2026-10 */
     fun monthKey(sec: Long): String = if (sec <= 0) "0000-00" else ym.format(Date(sec * 1000))
 
-    /** 代码片段按月分组标题：2026年10月 */
-    fun monthLabel(sec: Long): String = if (sec <= 0) "未知时间" else ymLabel.format(Date(sec * 1000))
-
-    fun ago(sec: Long): String {
-        if (sec <= 0) return "—"
-        val diff = System.currentTimeMillis() / 1000 - sec
-        return when {
-            diff < 60 -> "刚刚"
-            diff < 3600 -> "${diff / 60} 分钟前"
-            diff < 86400 -> "${diff / 3600} 小时前"
-            diff < 86400 * 30 -> "${diff / 86400} 天前"
-            diff < 86400 * 365 -> "${diff / (86400 * 30)} 个月前"
-            else -> "${diff / (86400 * 365)} 年前"
-        }
-    }
-
     fun bytes(size: Long): String = when {
         size <= 0 -> "0 B"
         size < 1024 -> "$size B"
-        size < 1024 * 1024 -> String.format(Locale.CHINA, "%.1f KB", size / 1024.0)
-        else -> String.format(Locale.CHINA, "%.1f MB", size / 1048576.0)
+        size < 1024 * 1024 -> String.format(Locale.ROOT, "%.1f KB", size / 1024.0)
+        else -> String.format(Locale.ROOT, "%.1f MB", size / 1048576.0)
     }
 
     fun compact(n: Int): String = when {
         n < 1000 -> n.toString()
-        n < 10000 -> String.format(Locale.CHINA, "%.1fk", n / 1000.0)
-        else -> String.format(Locale.CHINA, "%.0fk", n / 1000.0)
+        n < 10000 -> String.format(Locale.ROOT, "%.1fk", n / 1000.0)
+        else -> String.format(Locale.ROOT, "%.0fk", n / 1000.0)
     }
 
     fun monthShort(key: String): String {

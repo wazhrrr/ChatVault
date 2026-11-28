@@ -4,6 +4,7 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.net.Uri
 import com.r.chatvault.BuildConfig
+import com.r.chatvault.R
 import com.r.chatvault.data.Store
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -22,12 +23,14 @@ class BackupManager(private val ctx: Context, private val store: Store) {
 
     data class Progress(val phase: String, val done: Int, val total: Int)
 
+    private fun str(resId: Int, vararg args: Any): String = AppLocale.str(ctx, resId, *args)
+
     data class RestoreResult(val conversations: Int, val messages: Int, val attachments: Int)
 
     suspend fun backup(uri: Uri, onProgress: (Progress) -> Unit): Long = withContext(Dispatchers.IO) {
         val dbFile = ctx.getDatabasePath("chatvault.db")
         if (!dbFile.exists() || dbFile.length() == 0L) {
-            throw IllegalStateException("本地数据库还不存在，先导入数据再备份")
+            throw IllegalStateException(str(R.string.err_no_db))
         }
         runCatching {
             store.writableDatabase.rawQuery("PRAGMA wal_checkpoint(TRUNCATE)", null).use { it.moveToFirst() }
@@ -35,7 +38,7 @@ class BackupManager(private val ctx: Context, private val store: Store) {
         val blobs = File(ctx.filesDir, "blobs")
         val files = blobs.listFiles()?.filter { it.isFile } ?: emptyList()
         val out = ctx.contentResolver.openOutputStream(uri)
-            ?: throw IllegalStateException("无法写入备份文件")
+            ?: throw IllegalStateException(str(R.string.err_write_backup))
         var written = 0L
         ZipOutputStream(BufferedOutputStream(out)).use { zos ->
             val meta = JSONObject().apply {
@@ -50,13 +53,13 @@ class BackupManager(private val ctx: Context, private val store: Store) {
             zos.write(meta.toString().toByteArray(Charsets.UTF_8))
             zos.closeEntry()
 
-            onProgress(Progress("备份数据库", 0, files.size + 1))
+            onProgress(Progress(str(R.string.phase_backup_db), 0, files.size + 1))
             zos.putNextEntry(ZipEntry("chatvault.db"))
             dbFile.inputStream().use { input -> written += input.copyTo(zos) }
             zos.closeEntry()
 
             files.forEachIndexed { index, f ->
-                onProgress(Progress("备份附件", index + 1, files.size + 1))
+                onProgress(Progress(str(R.string.phase_backup_atts), index + 1, files.size + 1))
                 zos.putNextEntry(ZipEntry("blobs/${f.name}"))
                 f.inputStream().use { input -> written += input.copyTo(zos) }
                 zos.closeEntry()
@@ -68,25 +71,25 @@ class BackupManager(private val ctx: Context, private val store: Store) {
     suspend fun restore(uri: Uri, onProgress: (Progress) -> Unit): RestoreResult = withContext(Dispatchers.IO) {
         val tmp = File(ctx.cacheDir, "restore_${System.currentTimeMillis()}").apply { mkdirs() }
         try {
-            onProgress(Progress("解压备份", 0, 0))
+            onProgress(Progress(str(R.string.phase_unzip_backup), 0, 0))
             unzip(uri, tmp)
 
             val newDb = File(tmp, "chatvault.db")
             if (!newDb.exists() || newDb.length() == 0L) {
-                throw IllegalStateException("这个 zip 里没有 chatvault.db，可能不是 ChatVault 备份")
+                throw IllegalStateException(str(R.string.err_no_db_in_zip))
             }
             val meta = File(tmp, "meta.json").takeIf { it.exists() }?.let {
                 runCatching { JSONObject(it.readText(Charsets.UTF_8)) }.getOrNull()
             }
             val backupVersion = meta?.optInt("dbVersion", 1) ?: 1
             if (backupVersion > Store.DB_VERSION) {
-                throw IllegalStateException("备份来自更高版本（DB v$backupVersion），请先升级应用")
+                throw IllegalStateException(str(R.string.err_higher_version, backupVersion))
             }
             validateDb(newDb)
 
             val newBlobs = File(tmp, "blobs")
             val dbFile = ctx.getDatabasePath("chatvault.db")
-            val dbDir = dbFile.parentFile ?: throw IllegalStateException("找不到数据库目录")
+            val dbDir = dbFile.parentFile ?: throw IllegalStateException(str(R.string.err_no_db_dir))
             dbDir.mkdirs()
             val dbBak = File(dbDir, "chatvault.db.bak")
             val blobsDir = File(ctx.filesDir, "blobs")
@@ -97,7 +100,7 @@ class BackupManager(private val ctx: Context, private val store: Store) {
             dbBak.delete()
             blobsBak.deleteRecursively()
 
-            onProgress(Progress("替换数据", 0, 2))
+            onProgress(Progress(str(R.string.phase_replace), 0, 2))
             if (dbFile.exists() && !dbFile.renameTo(dbBak)) {
                 dbFile.copyTo(dbBak, overwrite = true)
                 dbFile.delete()
@@ -116,7 +119,7 @@ class BackupManager(private val ctx: Context, private val store: Store) {
                     blobsDir.mkdirs()
                 }
                 validateDb(dbFile)
-                onProgress(Progress("修复附件路径", 1, 2))
+                onProgress(Progress(str(R.string.phase_fix_paths), 1, 2))
                 store.repairAttachmentPaths()
                 ok = true
             } finally {
@@ -133,7 +136,7 @@ class BackupManager(private val ctx: Context, private val store: Store) {
                     if (blobsBak.exists()) blobsBak.renameTo(blobsDir)
                 }
             }
-            if (!ok) throw IllegalStateException("恢复失败，已回滚到原数据")
+            if (!ok) throw IllegalStateException(str(R.string.err_restore_rolled_back))
 
             val counts = store.counts()
             RestoreResult(counts.first, counts.second, counts.third)
@@ -144,7 +147,7 @@ class BackupManager(private val ctx: Context, private val store: Store) {
 
     private fun unzip(uri: Uri, dir: File) {
         val input = ctx.contentResolver.openInputStream(uri)
-            ?: throw IllegalStateException("无法打开备份文件")
+            ?: throw IllegalStateException(str(R.string.err_open_backup))
         val base = dir.canonicalFile
         ZipInputStream(input.buffered()).use { zis ->
             var entry = zis.nextEntry
@@ -175,13 +178,13 @@ class BackupManager(private val ctx: Context, private val store: Store) {
     private fun validateDb(file: File) {
         SQLiteDatabase.openDatabase(file.path, null, SQLiteDatabase.OPEN_READONLY).use { db ->
             if (db.version > Store.DB_VERSION) {
-                throw IllegalStateException("备份数据库版本过高（v${db.version}）")
+                throw IllegalStateException(str(R.string.err_db_too_new, db.version))
             }
             db.rawQuery("PRAGMA integrity_check", null).use { c ->
                 if (c.moveToFirst()) {
                     val result = c.getString(0) ?: ""
                     if (!result.equals("ok", ignoreCase = true)) {
-                        throw IllegalStateException("备份数据库校验失败：$result")
+                        throw IllegalStateException(str(R.string.err_db_verify, result))
                     }
                 }
             }

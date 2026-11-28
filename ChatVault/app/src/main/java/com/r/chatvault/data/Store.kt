@@ -2,6 +2,7 @@ package com.r.chatvault.data
 
 import android.content.ContentValues
 import android.content.Context
+import com.r.chatvault.R
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
@@ -973,7 +974,14 @@ class Store(context: Context) : SQLiteOpenHelper(context, "chatvault.db", null, 
                             msgId = "",
                             role = "title",
                             ts = c.getLong(2),
-                            snippet = "${c.getInt(3)} 条消息 · ${c.getString(4) ?: ""}",
+                            snippet = com.r.chatvault.util.AppLocale.str(
+                                appContext,
+                                R.string.title_hit_snippet,
+                                c.getInt(3),
+                                CategoryRes.idOf(c.getString(4) ?: "")
+                                    ?.let { com.r.chatvault.util.AppLocale.str(appContext, it) }
+                                    ?: (c.getString(4) ?: "")
+                            ),
                             order = 0,
                             type = "title"
                         )

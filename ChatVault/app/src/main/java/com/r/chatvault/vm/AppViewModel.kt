@@ -4,6 +4,7 @@ import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.r.chatvault.R
 import com.r.chatvault.data.Attachment
 import com.r.chatvault.data.ClipItem
 import com.r.chatvault.data.CodeItem
@@ -61,6 +62,8 @@ data class UiState(
     val stats: StatsBundle? = null,
     val allFiles: List<Attachment> = emptyList(),
     val importing: Boolean = false,
+    /** 0=导入 1=备份 2=恢复 */
+    val progressKind: Int = 0,
     val phase: String = "",
     val progress: Float = 0f,
     val toast: String? = null,
@@ -68,6 +71,8 @@ data class UiState(
     val jumpQuery: String? = null,
     val themeMode: Int = 1,
     val fontScale: Float = 1f,
+    /** "" = 跟随系统，否则 zh / en */
+    val langTag: String = "",
     val codeWrap: Boolean = true,
     val clips: List<ClipItem> = emptyList(),
     val clipQuery: String = "",
@@ -91,10 +96,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val importer = Importer(app, store)
     private val backupManager = BackupManager(app, store)
 
+    /** 非 Compose 文案：按应用内语言解析资源 */
+    private fun res(resId: Int, vararg args: Any): String =
+        com.r.chatvault.util.AppLocale.str(getApplication(), resId, *args)
+
     private val _state = MutableStateFlow(
         UiState(
             themeMode = prefs.themeMode,
             fontScale = prefs.fontScale,
+            langTag = prefs.langTag,
             codeWrap = prefs.codeWrap
         )
     )
@@ -313,7 +323,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     attachments = if (clear) emptyMap() else it.attachments,
                     convAttachments = if (clear) emptyList() else it.convAttachments,
                     screen = if (clear) Screen.CHATS else it.screen,
-                    toast = "已删除会话"
+                    toast = res(R.string.toast_chat_deleted)
                 )
             }
             refresh()
@@ -396,7 +406,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             withContext(Dispatchers.IO) {
                 store.addClip(convId, msgId, text.take(20_000), note.trim().ifBlank { null }, tags, "clip")
             }
-            _state.update { it.copy(toast = "已保存到摘录") }
+            _state.update { it.copy(toast = res(R.string.toast_saved_clip)) }
             loadClips()
         }
     }
@@ -406,7 +416,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             withContext(Dispatchers.IO) {
                 store.addClip(msg.convId, msg.id, msg.text.take(20_000), null, "", "bookmark")
             }
-            _state.update { it.copy(toast = "已加入书签") }
+            _state.update { it.copy(toast = res(R.string.toast_bookmarked)) }
             loadClips()
         }
     }
@@ -416,7 +426,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             withContext(Dispatchers.IO) {
                 store.updateClip(id, note.trim().ifBlank { null }, tags)
             }
-            _state.update { it.copy(toast = "备注与标签已更新") }
+            _state.update { it.copy(toast = res(R.string.toast_note_updated)) }
             loadClips()
         }
     }
@@ -424,7 +434,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun revertClip(id: Long) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) { store.revertClip(id) }
-            _state.update { it.copy(toast = "已还原上次修改") }
+            _state.update { it.copy(toast = res(R.string.toast_reverted)) }
             loadClips()
         }
     }
@@ -432,7 +442,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun deleteClip(id: Long) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) { store.deleteClip(id) }
-            _state.update { it.copy(toast = "已删除摘录") }
+            _state.update { it.copy(toast = res(R.string.toast_clip_deleted)) }
             loadClips()
         }
     }
@@ -473,7 +483,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
         viewModelScope.launch {
-            _state.update { it.copy(importing = true, phase = "准备导入", progress = 0f) }
+            _state.update { it.copy(importing = true, progressKind = 0, phase = res(R.string.toast_prepare_import), progress = 0f) }
             try {
                 val summary = importer.importFrom(uri, force) { p ->
                     _state.update {
@@ -511,7 +521,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 if (id != null) openConversation(id)
             } catch (t: Throwable) {
                 android.util.Log.e("ChatVault", "import failed", t)
-                _state.update { it.copy(importing = false, toast = "导入失败：${t.message ?: "未知错误"}") }
+                _state.update { it.copy(importing = false, toast = res(R.string.toast_import_failed, t.message ?: res(R.string.err_unknown))) }
             }
         }
     }
@@ -519,7 +529,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun importMarkdown(uris: List<Uri>) {
         if (_state.value.importing || uris.isEmpty()) return
         viewModelScope.launch {
-            _state.update { it.copy(importing = true, phase = "准备导入 Markdown", progress = 0f) }
+            _state.update { it.copy(importing = true, progressKind = 0, phase = res(R.string.toast_prepare_md), progress = 0f) }
             try {
                 val summary = importer.importMarkdown(uris) { p ->
                     _state.update {
@@ -542,7 +552,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 loadClips()
                 loadCode()
             } catch (t: Throwable) {
-                _state.update { it.copy(importing = false, toast = "导入失败：${t.message ?: "未知错误"}") }
+                _state.update { it.copy(importing = false, toast = res(R.string.toast_import_failed, t.message ?: res(R.string.err_unknown))) }
             }
         }
     }
@@ -550,7 +560,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun backupTo(uri: Uri) {
         if (_state.value.importing) return
         viewModelScope.launch {
-            _state.update { it.copy(importing = true, phase = "准备备份", progress = 0f) }
+            _state.update { it.copy(importing = true, progressKind = 1, phase = res(R.string.toast_prepare_backup), progress = 0f) }
             try {
                 val bytes = backupManager.backup(uri) { p ->
                     _state.update {
@@ -564,11 +574,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     it.copy(
                         importing = false,
                         progress = 1f,
-                        toast = "备份完成：${com.r.chatvault.data.Fmt.bytes(bytes)}"
+                        toast = res(R.string.toast_backup_done, com.r.chatvault.data.Fmt.bytes(bytes))
                     )
                 }
             } catch (t: Throwable) {
-                _state.update { it.copy(importing = false, toast = "备份失败：${t.message ?: "未知错误"}") }
+                _state.update { it.copy(importing = false, toast = res(R.string.toast_backup_failed, t.message ?: res(R.string.err_unknown))) }
             }
         }
     }
@@ -576,7 +586,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun restoreFrom(uri: Uri) {
         if (_state.value.importing) return
         viewModelScope.launch {
-            _state.update { it.copy(importing = true, phase = "准备恢复", progress = 0f) }
+            _state.update { it.copy(importing = true, progressKind = 2, phase = res(R.string.toast_prepare_restore), progress = 0f) }
             try {
                 val result = backupManager.restore(uri) { p ->
                     _state.update {
@@ -602,7 +612,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         clips = emptyList(),
                         codeItems = emptyList(),
                         importReport = null,
-                        toast = "恢复完成：${result.conversations} 个会话 / ${result.messages} 条消息"
+                        toast = res(R.string.toast_restore_done, result.conversations, result.messages)
                     )
                 }
                 refresh()
@@ -611,7 +621,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 loadClips()
                 loadCode()
             } catch (t: Throwable) {
-                _state.update { it.copy(importing = false, toast = "恢复失败：${t.message ?: "未知错误"}") }
+                _state.update { it.copy(importing = false, toast = res(R.string.toast_restore_failed, t.message ?: res(R.string.err_unknown))) }
             }
         }
     }
@@ -653,7 +663,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     totalConvs = 0,
                     totalMsgs = 0,
                     totalAtts = 0,
-                    toast = "已清空本地数据"
+                    toast = res(R.string.toast_cleared)
                 )
             }
             refresh()
@@ -675,6 +685,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setThemeMode(mode: Int) {
         prefs.themeMode = mode
         _state.update { it.copy(themeMode = mode) }
+    }
+
+    fun setLanguage(tag: String) {
+        prefs.langTag = tag
+        _state.update { it.copy(langTag = tag) }
     }
 
     fun setFontScale(scale: Float) {

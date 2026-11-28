@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 声明支持的语言，供系统「应用语言」列表使用（API 33+）。
+     新增语言时在这里补一行，并在 res/values-<语言>/ 放 strings.xml。 -->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="en" />
+    <locale android:name="zh" />
+</locale-config>
